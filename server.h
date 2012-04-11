@@ -1,15 +1,11 @@
 
 class Server {
   public:
+   virtual void Run() = 0;
   protected:
    // Initialize server (get sock, bind, listen)
-   Init(int port, struct addrinfo* hints, int backlog,
-         void (*sighandler)(int) handler);
+   Init(const std::string port, struct addrinfo* hints);
 
-   int port_;
    int sock_;
-   void (*sighandler)(int) handler_;
    int backlog_;
-
-
 }

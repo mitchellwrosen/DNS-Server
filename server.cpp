@@ -1,6 +1,6 @@
 
-int Server::Init(int port, struct addrinfo* hints, int backlog) {
-   int sock;
+
+void Server::Init(const std::string port, struct addrinfo* hints) {
    struct addrinfo info;
    struct addrinfo* server_info;
    struct addrinfo* p;
@@ -15,17 +15,17 @@ int Server::Init(int port, struct addrinfo* hints, int backlog) {
 
    // bind to first available socket
    for (p = servinfo; p != NULL; p = p->ai_next) {
-      if (-1 == (sock = socket(p->ai_family, p->ai_socktype,
+      if (-1 == (sock_ = socket(p->ai_family, p->ai_socktype,
             p->ai_protocol))) {
          perror("socket");
          continue;
       }
 
-      SYSCALL(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes,
+      SYSCALL(setsockopt(sock_, SOL_SOCKET, SO_REUSEADDR, &yes,
             sizeof(int)));
 
-      if (-1 == bind(sock, p->ai_addr, p->ai_addrlen)) {
-         close(sock);
+      if (-1 == bind(sock_, p->ai_addr, p->ai_addrlen)) {
+         close(sock_);
          perror("bind");
          continue;
       }
@@ -38,7 +38,4 @@ int Server::Init(int port, struct addrinfo* hints, int backlog) {
       fprintf(stderr, "Failed to bind.\n");
       exit(EXIT_FAILURE);
    }
-
-
-
 }

@@ -18,12 +18,12 @@
 int main(int argc, char** argv) {
    // set up signal handling
 
-   DNSServer server = new DNSServer(BACKLOG);
+   DNSServer server = new DNSServer();
    server.Run();
 }
 
-
-DNSServer::DNSServer(int backlog) {
+DNSServer::DNSServer()
+      : port_("53") {
    struct addrinfo hints;
 
    // set up server hints struct
@@ -33,5 +33,13 @@ DNSServer::DNSServer(int backlog) {
    hints.ai_flags = AI_PASSIVE;
 
    // init server
-   Init(DNS_PORT, &hints, backlog);
+   Init(port_, &hints);
+}
+
+void DNSServer::Run() {
+   struct sockaddr_storage client_addr;
+   socklet_t client_addr_len = sizeof(struct sockaddr_storage);
+
+
+
 }
