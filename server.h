@@ -26,6 +26,9 @@ class Server {
    // time.
    bool HasDataToRead(int sock, int seconds, int useconds);
 
+   // Performs a select on the specified socket for an indefinite time
+   bool HasDataToRead(int sock);
+
    //virtual void Send() = 0;
    //virtual void Receive() = 0;
    virtual void Run() = 0;
@@ -33,6 +36,11 @@ class Server {
   protected:
    int sock_;
    int backlog_;
+  private:
+   // Only called by Server, derived classes should call
+   // HasDataToRead(int sock) for no timeout or
+   // HasDataToRead(int sock, int seconds, int useconds) for timeout
+   bool HasDataToRead(int sock, struct timeval* tv);
 };
 
 #endif   // _SERVER_H_

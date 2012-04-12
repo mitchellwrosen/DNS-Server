@@ -58,15 +58,24 @@ void Server::Init(const std::string port, struct addrinfo* hints) {
 
 bool Server::HasDataToRead(int sock, int seconds, int useconds) {
    struct timeval tv;
-   fd_set readfds;
 
    tv.tv_sec = seconds;
    tv.tv_usec = useconds;
 
+   return HasDataToRead(sock, &tv);
+}
+
+bool Server::HasDataToRead(int sock) {
+   return HasDataToRead(sock, NULL);
+}
+
+bool Server::HasDataToRead(int sock, struct timeval* tv) {
+   fd_set readfds;
+
    FD_ZERO(&readfds);
    FD_SET(sock, &readfds);
 
-   SYSCALL(select(sock + 1, &readfds, NULL, NULL, &tv), "select");
+   SYSCALL(select(sock + 1, &readfds, NULL, NULL, tv), "select");
 
    if (FD_ISSET(sock, &readfds))
       return true;

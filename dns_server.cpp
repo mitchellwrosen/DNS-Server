@@ -17,17 +17,42 @@
 #include "dns_server.h"
 #include "smartalloc.h"
 
-int main(int argc, char** argv) {
-   // set up signal handling
+DNSServer* server;
 
-   DNSServer* server = new DNSServer();
+int main(int argc, char** argv) {
+   // check for root
+   if (getuid() || geteuid()) {
+      fprintf(stderr, "Must be root to run %s\n", argv[0]);
+      exit(EXIT_FAILURE);
+   }
+
+   // set up signal handling
+   struct sigaction sigact;
+   memset(&sigact, 0, sizeof(struct sigaction));
+   sigact.sa_handler = sigint_handler;
+   SYSCALL(sigaction(SIGINT, &sigact, NULL), "sigaction");
+
+
+   server = new DNSServer();
    server->Run();
 
    delete server;
 }
 
+void sigint_handler(int signum) {
+   switch (signum) {
+      case SIGINT:
+         // clean dynamically allocated memory
+         delete server;
+
+         fprintf(stdout, "Server exiting cleanly.\n");
+         exit(EXIT_FAILURE);
+         break;
+   }
+}
+
 DNSServer::DNSServer()
-      : port_("5003") {
+      : port_("53") {
    struct addrinfo hints;
 
    // set up server hints struct
@@ -44,7 +69,7 @@ void DNSServer::Run() {
    //struct sockaddr_storage client_addr;
    //socklen_t client_addr_len = sizeof(struct sockaddr_storage);
 
-   if (HasDataToRead(sock_, 1, 0))
+   if (HasDataToRead(sock_))
       std::cout << "Data to read" << std::endl;
    else
       std::cout << "No data to read" << std::endl;
