@@ -7,18 +7,14 @@ class DNSPacket {
   public:
    DNSPacket(char* data);
 
-   extern const int kIdOffset;
-   extern const int kFlagsOffset;
-   extern const int kQueriesOffset;
-   extern const int kAnswerRrsOffset;
-   extern const int kAuthorityRrsOffset;
-   extern const int kAdditionalRrsOffset;
-
+   // A Record is either a Query or a ResourceRecord. A Record gets is data by
+   // accessing packet_.cur_, which always points to the first byte of the
+   // current record.
    class Record {
      public:
       Record(const DNSPacket& packet);
 
-      Record* operator++();
+      virtual const Record& operator++();
 
      protected:
       const DNSPacket& packet_;
@@ -30,18 +26,23 @@ class DNSPacket {
      public:
       Query(const DNSPacket& packet);
 
+      const Record& operator++();
+
      private:
       const DNSPacket& packet_;
 
       char* name_;
+      int name_len_;
    }
 
    class ResourceRecord : public Record {
      public:
       ResourceRecord(const DNSPacket& packet);
 
+      const Record& operator++();
+
      private:
-      const DNSPacket& packet;
+      const DNSPacket& packet_;
 
       uint16_t name_;
       uint32_t ttl_;
@@ -49,15 +50,16 @@ class DNSPacket {
       char* data_;
    };
 
-   friend class Header;
    friend class Record;
+
+   const Record& FirstRecord();
 
    // Getters
    char* data() { return data_; }
    struct Header* header() { return (struct Header*) data_; }
    char* cur() { return cur_; }
+   const Record& cur_record() { return cur_record_; }
 
-   Record* cur_record();
    uint16_t id();
    uint16_t flags();
    uint16_t answer_rrs();
@@ -66,7 +68,9 @@ class DNSPacket {
 
   private:
    char* data_;
-   char* cur_; // Points to current ResourceRecord
+   char* cur_; // Points to current Record
+   int cur_record_num_;
+   Record cur_record_; // Filled in with current Record info
 
    uint16_t id_;
    uint16_t flags_;

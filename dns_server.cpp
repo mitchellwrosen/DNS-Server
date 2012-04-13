@@ -75,4 +75,14 @@ void DNSServer::Run() {
       std::cout << "No data to read" << std::endl;
 
 
+/*
+   DNSPacket mypacket(data);
+   for (Record rec = mypacket.cur_record();
+        rec != NULL;
+        rec++) {
+
+   }
+*/
+
+
 }
