@@ -27,21 +27,6 @@ class DNSServer : public UDPServer {
    void Run();
 
   protected:
-   class DNSPacket {
-     public:
-      DNSPacket(char* data);
-
-      char* Question(int index);
-      char* Answer(int index);
-      char* Authority(int index);
-      char* Additional(int index);
-
-     private:
-      int id_;
-      int rrs_answer_;
-      int rrs_authority_;
-      int rrs_additional_;
-   };
 
   private:
    const std::string port_;
