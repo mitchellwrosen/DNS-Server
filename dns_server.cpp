@@ -69,20 +69,33 @@ void DNSServer::Run() {
    //struct sockaddr_storage client_addr;
    //socklen_t client_addr_len = sizeof(struct sockaddr_storage);
 
-   if (HasDataToRead(sock_))
+   if (HasDataToRead(sock_)) {
       std::cout << "Data to read" << std::endl;
-   else
+
+      DNSPacket mypacket(data);
+      mypacket.Print();
+/*      
+      for (int i = 0; i < mypacket.queries(); ++i) {
+         DNSPacket::Query query = mypacket.GetQuery();
+         
+      }
+
+      for (int i = 0; i < mypacket.answer_rrs(); ++i) {
+         DNS::ResourceRecord record = mypacket.GetResourceRecord();
+         
+      }
+
+      for (int i = 0; i < mypacket.authority_rrs(); ++i) {
+         DNS::ResourceRecord record;
+
+      }
+
+      for (int i = 0; i < mypacket.additional_rrS(); ++i) {
+         DNS::ResourceRecord record;
+
+      }
+*/         
+   } else {
       std::cout << "No data to read" << std::endl;
-
-
-/*
-   DNSPacket mypacket(data);
-   for (Record rec = mypacket.cur_record();
-        rec != NULL;
-        rec++) {
-
    }
-*/
-
-
 }
