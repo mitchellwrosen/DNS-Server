@@ -21,9 +21,9 @@
 
 void sigint_handler(int signum);
 
-class DNSServer : public UDPServer {
+class DnsServer : public UDPServer {
   public:
-   DNSServer();
+   DnsServer();
    void Run();
 
   protected:

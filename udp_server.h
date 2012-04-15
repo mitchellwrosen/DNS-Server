@@ -18,7 +18,7 @@
 #include "smartalloc.h"
 #include "server.h"
 
-class UDPServer : public Server {
+class UdpServer : public Server {
   public:
    virtual void Run() = 0;
 };

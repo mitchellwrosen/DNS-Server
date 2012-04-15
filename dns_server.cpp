@@ -14,10 +14,12 @@
 
 #include "checksum.h"
 #include "debug.h"
-#include "dns_server.h"
 #include "smartalloc.h"
 
-DNSServer* server;
+#include "dns_server.h"
+#include "dns_packet.h"
+
+DnsServer* server;
 
 int main(int argc, char** argv) {
    // check for root
@@ -33,7 +35,7 @@ int main(int argc, char** argv) {
    SYSCALL(sigaction(SIGINT, &sigact, NULL), "sigaction");
 
 
-   server = new DNSServer();
+   server = new DnsServer();
    server->Run();
 
    delete server;
@@ -51,7 +53,7 @@ void sigint_handler(int signum) {
    }
 }
 
-DNSServer::DNSServer()
+DnsServer::DnsServer()
       : port_("53") {
    struct addrinfo hints;
 
@@ -65,33 +67,34 @@ DNSServer::DNSServer()
    Init(port_, &hints);
 }
 
-void DNSServer::Run() {
+void DnsServer::Run() {
    //struct sockaddr_storage client_addr;
    //socklen_t client_addr_len = sizeof(struct sockaddr_storage);
+   char* buf[1500]; 
 
    if (HasDataToRead(sock_)) {
       std::cout << "Data to read" << std::endl;
 
-      DNSPacket mypacket(data);
+      DnsPacket mypacket(data);
       mypacket.Print();
 /*      
       for (int i = 0; i < mypacket.queries(); ++i) {
-         DNSPacket::Query query = mypacket.GetQuery();
+         DnsPacket::Query query = mypacket.GetQuery();
          
       }
 
       for (int i = 0; i < mypacket.answer_rrs(); ++i) {
-         DNS::ResourceRecord record = mypacket.GetResourceRecord();
+         Dns::ResourceRecord record = mypacket.GetResourceRecord();
          
       }
 
       for (int i = 0; i < mypacket.authority_rrs(); ++i) {
-         DNS::ResourceRecord record;
+         Dns::ResourceRecord record;
 
       }
 
       for (int i = 0; i < mypacket.additional_rrS(); ++i) {
-         DNS::ResourceRecord record;
+         Dns::ResourceRecord record;
 
       }
 */         

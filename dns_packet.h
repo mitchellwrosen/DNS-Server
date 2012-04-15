@@ -1,15 +1,38 @@
 #include <stdint.h>
 
-// A single DNS packet. A DNSPacket consists of a header and one or more
+namespace dns_packet_constants {
+extern const int kQrFlagQuery;
+extern const int kQrFlagResponse;
+
+extern const int kOpcodeQuery;
+extern const int kOpcodeInverseQuery;
+extern const int kOpcodeStatus;
+extern const int kOpcodeNotify;
+extern const int kOpcodeUpdate;
+
+extern const int kResponseCodeNoError;
+extern const int kResponseCodeFormatError;
+extern const int kResponseCodeServerFailure;
+extern const int kResponseCodeNameError;
+extern const int kResponseCodeNotImplemented;
+extern const int kResponseCodeRefused;
+extern const int kResponseCodeYxDomain;
+extern const int kResponseCodeYxRrSet;
+extern const int kResponseCodeNxRrSet;
+extern const int kResponseCodeNotAuth;
+extern const int kResponseCodeNotZone;
+} 
+
+// A single DNS packet. A DnsPacket consists of a header and one or more
 // Records. A Record is either a Query or a ResourceRecord
 // Records.
-class DNSPacket {
+class DnsPacket {
   public:
-   DNSPacket(char* data);
+   DnsPacket(char* data);
 
    class Query {
      public:
-      Query(const DNSPacket& packet);
+      Query(const DnsPacket& packet);
 
       // Getters
       char* name() { return name_; }
@@ -17,7 +40,7 @@ class DNSPacket {
       uint16_t clz() { return clz_; }
 
      private:
-      const DNSPacket& packet_;
+      const DnsPacket& packet_;
 
       char* name_;
       uint16_t type_;
@@ -26,7 +49,7 @@ class DNSPacket {
 
    class ResourceRecord {
      public:
-      ResourceRecord(const DNSPacket& packet);
+      ResourceRecord(const DnsPacket& packet);
 
       // Getters
       char* name() { return name_; }
@@ -37,7 +60,7 @@ class DNSPacket {
       char* data() { return data_; }
 
      private:
-      const DNSPacket& packet_;
+      const DnsPacket& packet_;
 
       char* name_;
       uint16_t type_;
@@ -50,6 +73,13 @@ class DNSPacket {
    friend class Query;
    friend class ResourceRecord;
 
+   // Static methods for creating DNS Packets
+   static void Construct
+
+
+
+
+
    // Gets the current query. Returns NULL if the current record is not a query
    // (i.e. is a ResourceRecord) (TODO)
    Query GetQuery();
@@ -59,16 +89,16 @@ class DNSPacket {
    ResourceRecord GetResourceRecord();
 
    // Prints the entire packet and resets the cur_ pointer.
-   Print();
+   void Print();
    
-   // Flags
-   bool qr_flag();   // Query/Response
-   uint8_t opcode_flag();    
-   bool aa_flag();   // Authoritative Answer
-   bool tc_flag();   // Truncation
-   bool rd_flag();   // Recursion Desired
-   bool ra_flag();   // Recursion Available
-   uint8_t rc_flag();   // Response Code
+   // Flags field
+   bool qr_flag() { return flags() & 0x8000; }
+   uint8_t opcode() { return (flags() & 0x7800) >> 11; }    
+   bool aa_flag() { return flags() & 0x0400; }
+   bool tc_flag() { return flags() & 0x0200; }
+   bool rd_flag() { return flags() & 0x0100; }
+   bool ra_flag() { return flags() & 0x0080; }
+   uint8_t rcode() { return flags() & 0x000F; }
 
 
    // Getters

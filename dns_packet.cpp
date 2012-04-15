@@ -4,16 +4,6 @@
 
 #include "dns_packet.h"
 
-namespace {
-const int kIdOffset = 0;
-const int kFlagsOffset = 2;
-const int kQueriesOffset = 4;
-const int kAnswerRrsOffset = 6;
-const int kAuthorityRrsOffset = 8;
-const int kAdditionalRrsOffset = 10;
-const int kFirstRecordOffset = 12;
-}
-
 namespace dns_packet_constants {
 const int kQrFlagQuery = 0;
 const int kQrFlagResponse = 1;
@@ -37,12 +27,20 @@ const int kResponseCodeNotAuth = 9;
 const int kResponseCodeNotZone = 10;
 } 
 
-// DNSPacket
-DNSPacket::DNSPacket(char* data)
+namespace {
+const int kIdOffset = 0;
+const int kFlagsOffset = 2;
+const int kQueriesOffset = 4;
+const int kAnswerRrsOffset = 6;
+const int kAuthorityRrsOffset = 8;
+const int kAdditionalRrsOffset = 10;
+const int kFirstRecordOffset = 12;
+}
+
+// DnsPacket
+DnsPacket::DnsPacket(char* data)
       : data_(data),
         cur_(data + kFirstRecordOffset),
-        cur_record_num(0),
-        cur_record_(DNSPacket::Query(*this, cur_)),
         id_(ntohs(data[kIdOffset])),
         flags_(data[kFlagsOffset]),
         queries_(ntohs(data[kQueriesOffset])),
@@ -51,71 +49,43 @@ DNSPacket::DNSPacket(char* data)
         additional_rrs_(ntohs(data[kAdditionalRrsOffset])) {
 }
 
-uint16_t DNSPacket::id() {
+uint16_t DnsPacket::id() {
    return htons((uint16_t) data_[kIdOffset]);
 }
 
-uint16_t DNSPacket::flags() {
+uint16_t DnsPacket::flags() {
    return (uint16_t) data_[kFlagsOffset];
 }
 
-bool qr_flag() {
-   return flags() & 0x8000;
-}
-
-uint8_t opcode() {
-   return (flags() & 0x7800) >> 11;    
-}
-
-bool aa_flag() {
-   return flags() & 0x0400;
-}
-
-bool tc_flag() {
-   return flags() & 0x0200;
-}
-
-bool rd_flag() {
-   return flags() & 0x0100;
-}
-
-bool ra_flag() {
-   return flags() & 0x0080;
-}
-
-uint8_t rcode() {
-   return flags() & 0x000F;
-}
-
-uint16_t DNSPacket::queries() {
+uint16_t DnsPacket::queries() {
    return htons((uint16_t) data_[kQueriesOffset])
 }
 
-uint16_t DNSPacket::answer_rrs() {
+uint16_t DnsPacket::answer_rrs() {
    return htons((uint16_t) data_[kAnswerRrsOffset]);
 }
 
-uint16_t DNSPacket::authority_rrs() {
+uint16_t DnsPacket::authority_rrs() {
    return htons((uint16_t) data_[kAuthorityRrsOffset]);
 }
 
-uint16_t DNSPacket::additional_rrs() {
+uint16_t DnsPacket::additional_rrs() {
    return htons((uint16_t) data_[kAdditionalRrsOffset]);
 }
 
-DNSPacket::Query DNSPacket::GetQuery() {
+DnsPacket::Query DnsPacket::GetQuery() {
    return Query query(*this);
 }
 
-DNSPacket::ResourceRecord DNSPacket::GetResourceRecord() {
+DnsPacket::ResourceRecord DnsPacket::GetResourceRecord() {
    return ResourceRecord rr(*this);
 }
 
-DNSPacket::Print() {
+DnsPacket::Print() {
    int i;
 
-   fprintf(stdout, "DNSPacket");
-   fprintf(stdout, "=========");
+   fprintf(stdout, "DNS Packet\n");
+   fprintf(stdout, "==========\n");
    fprintf(stdout, "Id: %d\n", id());
    
    if (qr_flag() == kQRFlagQuery)
@@ -215,8 +185,8 @@ DNSPacket::Print() {
    }
 }
 
-// DNSPacket::Query
-DNSPacket::Query::Query(const DNSPacket& packet)
+// DnsPacket::Query
+DnsPacket::Query::Query(const DnsPacket& packet)
       : packet_(packet) {
    // The name could be a string, or a two-byte pointer.
    // The first two bits == 11 indicates pointer.
@@ -234,11 +204,11 @@ DNSPacket::Query::Query(const DNSPacket& packet)
    }
 }
 
-// DNSPacket::ResourceRecord
+// DnsPacket::ResourceRecord
 // Code duplication, I know. The alternative is to derive ResourceRecord from
 // Query to share the common member data, but that is simply an unintuitive
 // relationship. A ResourceRecord is-not-a Query.
-DNSPacket::ResourceRecord::ResourceRecord(const DNSPacket& packet)
+DnsPacket::ResourceRecord::ResourceRecord(const DnsPacket& packet)
       : packet_(packet) {
    // The name could be a string, or a two-byte pointer.
    // The first two bits == 11 indicates pointer.
