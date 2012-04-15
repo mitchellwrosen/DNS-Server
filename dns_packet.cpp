@@ -5,7 +5,6 @@
 #include "dns_packet.h"
 
 namespace {
-
 // DNSPacket
 const int kIdOffset = 0;
 const int kFlagsOffset = 2;
@@ -19,8 +18,7 @@ const int kFirstRecordOffset = 12;
 const int kQueryTypeOffset = 1;
 const int kQueryClassOffset = 3;
 const int kQueryNextRecordOffset = 5;
-
-} // namespace
+} 
 
 // DNSPacket
 DNSPacket::DNSPacket(char* data)
