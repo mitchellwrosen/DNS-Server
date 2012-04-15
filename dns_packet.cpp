@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <iostream>
+
 #include "dns_packet.h"
 
 namespace dns_packet_constants {
@@ -37,6 +39,8 @@ const int kAdditionalRrsOffset = 10;
 const int kFirstRecordOffset = 12;
 }
 
+using namespace dns_packet_constants;
+
 // DnsPacket
 DnsPacket::DnsPacket(char* data)
       : data_(data),
@@ -49,49 +53,64 @@ DnsPacket::DnsPacket(char* data)
         additional_rrs_(ntohs(data[kAdditionalRrsOffset])) {
 }
 
-uint16_t DnsPacket::id() {
-   return htons((uint16_t) data_[kIdOffset]);
-}
+// static
+char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
+      uint8_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
+      uint8_t rcode, uint16_t queries, uint16_t answer_rrs, 
+      uint16_t authority_rrs, uint16_t additional_rrs) {
+   memcpy(buf, &id, sizeof(uint16_t));
+   
+   uint16_t flags = ConstructFlags(qr_flag, opcode, aa_flag, tc_flag, 
+      rd_flag, ra_flag, rcode);
+   memcpy(buf + 2, &flags, sizeof(uint16_t));
 
-uint16_t DnsPacket::flags() {
-   return (uint16_t) data_[kFlagsOffset];
-}
+   memcpy(buf + 4, &queries, sizeof(uint16_t));
+   memcpy(buf + 6, &answer_rrs, sizeof(uint16_t));
+   memcpy(buf + 8, &authority_rrs, sizeof(uint16_t));
+   memcpy(buf + 10, &additional_rrs, sizeof(uint16_t));
 
-uint16_t DnsPacket::queries() {
-   return htons((uint16_t) data_[kQueriesOffset])
+   return buf + 12;
 }
+   
+// static
+uint16_t DnsPacket::ConstructFlags(bool qr_flag, uint8_t opcode, 
+      bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag, uint8_t rcode) {
+   Flags flags;
+   memset(&flags, 0, sizeof(Flags));
 
-uint16_t DnsPacket::answer_rrs() {
-   return htons((uint16_t) data_[kAnswerRrsOffset]);
-}
+   flags.qr = qr_flag;
+   flags.opcode = opcode;
+   flags.aa = aa_flag;
+   flags.tc = tc_flag;
+   flags.rd = rd_flag;
+   flags.ra = ra_flag;
+   flags.rcode = rcode;
 
-uint16_t DnsPacket::authority_rrs() {
-   return htons((uint16_t) data_[kAuthorityRrsOffset]);
-}
-
-uint16_t DnsPacket::additional_rrs() {
-   return htons((uint16_t) data_[kAdditionalRrsOffset]);
+   // Holy shit O.O
+   return htons(*reinterpret_cast<uint16_t*>(&flags));
 }
 
 DnsPacket::Query DnsPacket::GetQuery() {
-   return Query query(*this);
+   Query query(*this);
+   return query;
 }
 
 DnsPacket::ResourceRecord DnsPacket::GetResourceRecord() {
-   return ResourceRecord rr(*this);
+   ResourceRecord rr(*this);
+   return rr;
 }
 
-DnsPacket::Print() {
+void DnsPacket::Print() {
    int i;
 
-   fprintf(stdout, "DNS Packet\n");
-   fprintf(stdout, "==========\n");
-   fprintf(stdout, "Id: %d\n", id());
+   std::cout << "DNS Packet" << std::endl;
+   std::cout << "==========" << std::endl;
+   std::cout << "Id: %d" << id() << std::endl;
    
-   if (qr_flag() == kQRFlagQuery)
-      fprintf(stdout, "Query/Response: 1 (Response)\n");
+   if (qr_flag() == kQrFlagQuery)
+      std::cout << "Query/Response: 1 (Response)" << std::endl;
    else
-      fprintf(stdout, "Query/Response: 0 (Query)\n");
+      std::cout << "Query/Response: 0 (Query)" << std::endl;
    
    std::string opcode_str;
    switch (opcode()) {
@@ -114,12 +133,12 @@ DnsPacket::Print() {
          opcode_str = "UNRECOGNIZED";
          break;
    }
-   fprintf(stdout, "Opcode: %d (%s)\n", opcode(), opcode_str);
+   std::cout << "Opcode: %d (%s)" << opcode() << opcode_str << std::endl;
 
-   fprintf(stdout, "Authoritative Answer: %d\n", aa_flag());
-   fprintf(stdout, "Truncation: %d\n", tc_flag());
-   fprintf(stdout, "Recursion Desired: %d\n", rd_flag());
-   fprintf(stdout, "Recursion Available: %d\n", ra_flag());
+   std::cout << "Authoritative Answer: %d" << aa_flag() << std::endl;
+   std::cout << "Truncation: %d" << tc_flag() << std::endl;
+   std::cout << "Recursion Desired: %d" << rd_flag() << std::endl;
+   std::cout << "Recursion Available: %d" << ra_flag() << std::endl;
    
    std::string rcode_str;
    switch(rcode()) {
@@ -154,43 +173,67 @@ DnsPacket::Print() {
          rcode_str = "Not Zone";
          break;
    }
-   fprintf(stdout, "Response Code: %d (%s)\n", rcode(), rcode_str);
+   std::cout << "Response Code: %d (%s)" << rcode() << rcode_str << std::endl;
 
-   fprintf(stdout, "Queries: %d\n", queries());
-   fprintf(stdout, "Answer RRs: %d\n", answer_rrs());
-   fprintf(stdout, "Authority RRs: %d\n", authority_rrs());
-   fprintf(stdout, "Additional RRs: %d\n", additional_rrs());
+   std::cout << "Queries: %d" << queries() << std::endl;
+   std::cout << "Answer RRs: %d" << answer_rrs() << std::endl;
+   std::cout << "Authority RRs: %d" << authority_rrs() << std::endl;
+   std::cout << "Additional RRs: %d" << additional_rrs() << std::endl;
 
    for (i = 0; i < queries_; ++i) {
       Query query = GetQuery();
-      fprintf(stdout, "Query %d:\n", i + 1);
-      fprintf(stdout, "   Name: %s\n", query.name());
-      fprintf(stdout, "   Type: %d\n", query.type());
-      fprintf(stdout, "   Class: %d\n", query.clz());
+      std::cout << "Query %d:" << i + 1 << std::endl;
+      std::cout << "   Name: %s" << query.name() << std::endl;
+      std::cout << "   Type: %d" << query.type() << std::endl;
+      std::cout << "   Class: %d" << query.clz() << std::endl;
    }
 
    for (i = 0; i < answer_rrs_; ++i) {
-      ResourceRequest rr = GetResourceRequest();
-      fprintf(stdout, "Answer RR %d:\n", i + i);
+      ResourceRecord rr = GetResourceRecord();
+      std::cout << "Answer RR %d:" << i + 1 << std::endl;
    }
    
    for (i = 0; i < authority_rrs_; ++i) {
-      ResourceRequest rr = GetResourceRequest();
-      fprintf(stdout, "Authority RR %d:\n", i + i);
+      ResourceRecord rr = GetResourceRecord();
+      std::cout << "Authority RR %d:" << i + 1 << std::endl;
    }
 
    for (i = 0; i < additional_rrs_; ++i) {
-      ResourceRequest rr = GetResourceRequest();
-      fprintf(stdout, "Additional RR %d:\n", i + i);
+      ResourceRecord rr = GetResourceRecord();
+      std::cout << "Additional RR %d:" << i + 1 << std::endl;
    }
 }
 
+uint16_t DnsPacket::id() {
+   return htons((uint16_t) data_[kIdOffset]);
+}
+
+uint16_t DnsPacket::flags() {
+   return (uint16_t) data_[kFlagsOffset];
+}
+
+uint16_t DnsPacket::queries() {
+   return htons((uint16_t) data_[kQueriesOffset]);
+}
+
+uint16_t DnsPacket::answer_rrs() {
+   return htons((uint16_t) data_[kAnswerRrsOffset]);
+}
+
+uint16_t DnsPacket::authority_rrs() {
+   return htons((uint16_t) data_[kAuthorityRrsOffset]);
+}
+
+uint16_t DnsPacket::additional_rrs() {
+   return htons((uint16_t) data_[kAdditionalRrsOffset]);
+}
+
 // DnsPacket::Query
-DnsPacket::Query::Query(const DnsPacket& packet)
+DnsPacket::Query::Query(DnsPacket& packet)
       : packet_(packet) {
    // The name could be a string, or a two-byte pointer.
    // The first two bits == 11 indicates pointer.
-   if (*packet_.cur_ & 0xc0 == 0xc0) {
+   if ((*packet_.cur_ & 0xc0) == 0xc0) {
       name_ = packet_.data_ + (*packet_.cur_ & 0x3FFF);    
       type_ = ntohs(packet_.cur_[2]);
       clz_ = ntohs(packet_.cur_[4]);
@@ -200,7 +243,7 @@ DnsPacket::Query::Query(const DnsPacket& packet)
       int name_len_ = strlen(name_);
       type_ = ntohs(packet_.cur_[name_len_ + 1]);
       clz_ = ntohs(packet_.cur_[name_len_ + 3]);
-      packet_.cur += name_len_ + 5;
+      packet_.cur_ += name_len_ + 5;
    }
 }
 
@@ -208,11 +251,11 @@ DnsPacket::Query::Query(const DnsPacket& packet)
 // Code duplication, I know. The alternative is to derive ResourceRecord from
 // Query to share the common member data, but that is simply an unintuitive
 // relationship. A ResourceRecord is-not-a Query.
-DnsPacket::ResourceRecord::ResourceRecord(const DnsPacket& packet)
+DnsPacket::ResourceRecord::ResourceRecord(DnsPacket& packet)
       : packet_(packet) {
    // The name could be a string, or a two-byte pointer.
    // The first two bits == 11 indicates pointer.
-   if (*packet_.cur_ & 0xc0 == 0xc0) {
+   if ((*packet_.cur_ & 0xc0) == 0xc0) {
       name_ = packet_.data_ + (*packet_.cur_ & 0x3FFF);    
       type_ = ntohs(packet_.cur_[2]);
       clz_ = ntohs(packet_.cur_[4]);
@@ -228,6 +271,6 @@ DnsPacket::ResourceRecord::ResourceRecord(const DnsPacket& packet)
       ttl_ = ntohl(packet_.cur_[name_len_ + 5]);
       data_len_ = ntohs(packet_.cur_[name_len_ + 9]);
       data_ = packet_.cur_ + name_len_ + 11;
-      packet_.cur += name_len_ + 11 + data_len_;
+      packet_.cur_ += name_len_ + 11 + data_len_;
    }
 }

@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
+#include <linux/if_ether.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -19,40 +20,6 @@
 #include "dns_server.h"
 #include "dns_packet.h"
 
-DnsServer* server;
-
-int main(int argc, char** argv) {
-   // check for root
-   if (getuid() || geteuid()) {
-      fprintf(stderr, "Must be root to run %s\n", argv[0]);
-      exit(EXIT_FAILURE);
-   }
-
-   // set up signal handling
-   struct sigaction sigact;
-   memset(&sigact, 0, sizeof(struct sigaction));
-   sigact.sa_handler = sigint_handler;
-   SYSCALL(sigaction(SIGINT, &sigact, NULL), "sigaction");
-
-
-   server = new DnsServer();
-   server->Run();
-
-   delete server;
-}
-
-void sigint_handler(int signum) {
-   switch (signum) {
-      case SIGINT:
-         // clean dynamically allocated memory
-         delete server;
-
-         fprintf(stdout, "Server exiting cleanly.\n");
-         exit(EXIT_FAILURE);
-         break;
-   }
-}
-
 DnsServer::DnsServer()
       : port_("53") {
    struct addrinfo hints;
@@ -64,18 +31,21 @@ DnsServer::DnsServer()
    hints.ai_flags = AI_PASSIVE;
 
    // init server
-   Init(port_, &hints);
+   Server::Init(port_, &hints);
 }
 
 void DnsServer::Run() {
-   //struct sockaddr_storage client_addr;
-   //socklen_t client_addr_len = sizeof(struct sockaddr_storage);
-   char* buf[1500]; 
+   struct sockaddr_storage client_addr;
+   socklen_t client_addr_len = sizeof(struct sockaddr_storage);
 
-   if (HasDataToRead(sock_)) {
+   if (Server::HasDataToRead(sock_)) {
       std::cout << "Data to read" << std::endl;
 
-      DnsPacket mypacket(data);
+      int rlen;
+      SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
+            (struct sockaddr*) &client_addr, &client_addr_len)), "recvfrom");
+
+      DnsPacket mypacket(buf_);
       mypacket.Print();
 /*      
       for (int i = 0; i < mypacket.queries(); ++i) {
