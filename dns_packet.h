@@ -18,8 +18,6 @@ class DNSPacket {
 
      protected:
       const DNSPacket& packet_;
-      uint16_t type_;
-      uint16_t clz_;
    }
 
    class Query : public Record {
@@ -32,19 +30,23 @@ class DNSPacket {
       const DNSPacket& packet_;
 
       char* name_;
+      uint16_t type_;
+      uint16_t clz_;
       int name_len_;
    }
 
-   class ResourceRecord : public Record {
+   class ResourceRecord {
      public:
       ResourceRecord(const DNSPacket& packet);
 
-      const Record& operator++();
+      const ResourceRecord& operator++();
 
      private:
       const DNSPacket& packet_;
 
       uint16_t name_;
+      uint16_t type_;
+      uint16_t clz_;
       uint32_t ttl_;
       uint16_t len_;
       char* data_;
