@@ -100,6 +100,35 @@ DnsPacket::ResourceRecord DnsPacket::GetResourceRecord() {
    return rr;
 }
 
+std::string DnsPacket::GetName() {
+   bool ptr_found = false;
+   char* p = cur_;
+   std::string name;
+
+   while (*p) {
+      if ((*p & 0xc0) == 0xc0) {
+         if (!ptr_found) {
+            ptr_found = true;
+            cur_ = p + 2;
+         }
+         p = cur_ + ntohs(*((uint16_t*) p) & 0x3FFF);
+      }
+
+      // p is now pointing at a number. append that many chars to name,
+      // beginning with p + 1
+      name.append(p + 1, *p);
+      p += *p + 1;
+   }
+   
+   // If a pointer was used to resolve the name, cur_ was already set.
+   // Otherwise, p is pointing at the null byte after the name. Set cur_
+   // accordingly.
+   if (!ptr_found)
+      cur_ = p + 1;
+
+   return name;
+}
+
 void DnsPacket::Print() {
    int i;
 
@@ -228,49 +257,24 @@ uint16_t DnsPacket::additional_rrs() {
    return htons((uint16_t) data_[kAdditionalRrsOffset]);
 }
 
+
 // DnsPacket::Query
 DnsPacket::Query::Query(DnsPacket& packet)
       : packet_(packet) {
-   // The name could be a string, or a two-byte pointer.
-   // The first two bits == 11 indicates pointer.
-   if ((*packet_.cur_ & 0xc0) == 0xc0) {
-      name_ = packet_.data_ + (*packet_.cur_ & 0x3FFF);    
-      type_ = ntohs(packet_.cur_[2]);
-      clz_ = ntohs(packet_.cur_[4]);
-      packet_.cur_ += 6;
-   } else {
-      name_ = packet_.cur_;
-      int name_len_ = strlen(name_);
-      type_ = ntohs(packet_.cur_[name_len_ + 1]);
-      clz_ = ntohs(packet_.cur_[name_len_ + 3]);
-      packet_.cur_ += name_len_ + 5;
-   }
+   name_ = packet_.GetName();
+   type_ = ntohs((uint16_t) (packet_.cur_[0]));
+   clz_ = ntohs((uint16_t) (packet_.cur_[2]));
+   packet_.cur_ += 4;
 }
 
 // DnsPacket::ResourceRecord
-// Code duplication, I know. The alternative is to derive ResourceRecord from
-// Query to share the common member data, but that is simply an unintuitive
-// relationship. A ResourceRecord is-not-a Query.
 DnsPacket::ResourceRecord::ResourceRecord(DnsPacket& packet)
       : packet_(packet) {
-   // The name could be a string, or a two-byte pointer.
-   // The first two bits == 11 indicates pointer.
-   if ((*packet_.cur_ & 0xc0) == 0xc0) {
-      name_ = packet_.data_ + (*packet_.cur_ & 0x3FFF);    
-      type_ = ntohs(packet_.cur_[2]);
-      clz_ = ntohs(packet_.cur_[4]);
-      ttl_ = ntohl(packet_.cur_[6]);
-      data_len_ = ntohs(packet_.cur_[10]);
-      data_ = packet_.cur_ + 12;
-      packet_.cur_ += 12 + data_len_;
-   } else {
-      name_ = packet_.cur_;
-      int name_len_ = strlen(name_);
-      type_ = ntohs(packet_.cur_[name_len_ + 1]);
-      clz_ = ntohs(packet_.cur_[name_len_ + 3]);
-      ttl_ = ntohl(packet_.cur_[name_len_ + 5]);
-      data_len_ = ntohs(packet_.cur_[name_len_ + 9]);
-      data_ = packet_.cur_ + name_len_ + 11;
-      packet_.cur_ += name_len_ + 11 + data_len_;
-   }
+   name_ = packet_.GetName();
+   type_ = ntohs((uint16_t) (packet_.cur_[0]));
+   clz_ = ntohs((uint16_t) (packet_.cur_[2]));
+   ttl_ = ntohl((uint32_t) (packet_.cur_[4]));
+   data_len_ = ntohs((uint16_t) (packet_.cur_[8]));
+   data_ = packet_.cur_ + 10;
+   packet_.cur_ = data_ + data_len_;
 }

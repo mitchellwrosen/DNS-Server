@@ -35,14 +35,14 @@ class DnsPacket {
       Query(DnsPacket& packet);
 
       // Getters
-      char* name() { return name_; }
+      std::string name() { return name_; }
       uint16_t type() { return type_; }
       uint16_t clz() { return clz_; }
 
      private:
       DnsPacket& packet_;
 
-      char* name_;
+      std::string name_;
       uint16_t type_;
       uint16_t clz_;
    };
@@ -52,7 +52,7 @@ class DnsPacket {
       ResourceRecord(DnsPacket& packet);
 
       // Getters
-      char* name() { return name_; }
+      std::string name() { return name_; }
       uint16_t type() { return type_; }
       uint16_t clz() { return clz_; }
       uint32_t ttl() { return ttl_; }
@@ -62,7 +62,7 @@ class DnsPacket {
      private:
       DnsPacket& packet_;
 
-      char* name_;
+      std::string name_;
       uint16_t type_;
       uint16_t clz_;
       uint32_t ttl_;
@@ -103,6 +103,9 @@ class DnsPacket {
    // not a resource record (i.e. is a Query) (TODO)
    ResourceRecord GetResourceRecord();
 
+   // Gets the name pointed to by cur_, advances cur_ accordingly.
+   std::string GetName();
+
    // Prints the entire packet and resets the cur_ pointer.
    void Print();
    
@@ -115,11 +118,8 @@ class DnsPacket {
    bool ra_flag() { return flags() & 0x0080; }
    uint8_t rcode() { return flags() & 0x000F; }
 
-
    // Getters
    char* data() { return data_; }
-   struct Header* header() { return (struct Header*) data_; }
-   char* cur() { return cur_; }
 
    uint16_t id();
    uint16_t flags();
