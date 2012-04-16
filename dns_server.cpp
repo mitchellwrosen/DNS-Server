@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
+#include <linux/if_ether.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -14,44 +15,12 @@
 
 #include "checksum.h"
 #include "debug.h"
-#include "dns_server.h"
 #include "smartalloc.h"
 
-DNSServer* server;
+#include "dns_server.h"
+#include "dns_packet.h"
 
-int main(int argc, char** argv) {
-   // check for root
-   if (getuid() || geteuid()) {
-      fprintf(stderr, "Must be root to run %s\n", argv[0]);
-      exit(EXIT_FAILURE);
-   }
-
-   // set up signal handling
-   struct sigaction sigact;
-   memset(&sigact, 0, sizeof(struct sigaction));
-   sigact.sa_handler = sigint_handler;
-   SYSCALL(sigaction(SIGINT, &sigact, NULL), "sigaction");
-
-
-   server = new DNSServer();
-   server->Run();
-
-   delete server;
-}
-
-void sigint_handler(int signum) {
-   switch (signum) {
-      case SIGINT:
-         // clean dynamically allocated memory
-         delete server;
-
-         fprintf(stdout, "Server exiting cleanly.\n");
-         exit(EXIT_FAILURE);
-         break;
-   }
-}
-
-DNSServer::DNSServer()
+DnsServer::DnsServer()
       : port_("53") {
    struct addrinfo hints;
 
@@ -62,27 +31,44 @@ DNSServer::DNSServer()
    hints.ai_flags = AI_PASSIVE;
 
    // init server
-   Init(port_, &hints);
+   Server::Init(port_, &hints);
 }
 
-void DNSServer::Run() {
-   //struct sockaddr_storage client_addr;
-   //socklen_t client_addr_len = sizeof(struct sockaddr_storage);
+void DnsServer::Run() {
+   struct sockaddr_storage client_addr;
+   socklen_t client_addr_len = sizeof(struct sockaddr_storage);
 
-   if (HasDataToRead(sock_))
+   if (Server::HasDataToRead(sock_)) {
       std::cout << "Data to read" << std::endl;
-   else
+
+      int rlen;
+      SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
+            (struct sockaddr*) &client_addr, &client_addr_len)), "recvfrom");
+
+      DnsPacket mypacket(buf_);
+      mypacket.Print();
+/*      
+      for (int i = 0; i < mypacket.queries(); ++i) {
+         DnsPacket::Query query = mypacket.GetQuery();
+         
+      }
+
+      for (int i = 0; i < mypacket.answer_rrs(); ++i) {
+         Dns::ResourceRecord record = mypacket.GetResourceRecord();
+         
+      }
+
+      for (int i = 0; i < mypacket.authority_rrs(); ++i) {
+         Dns::ResourceRecord record;
+
+      }
+
+      for (int i = 0; i < mypacket.additional_rrS(); ++i) {
+         Dns::ResourceRecord record;
+
+      }
+*/         
+   } else {
       std::cout << "No data to read" << std::endl;
-
-
-/*
-   DNSPacket mypacket(data);
-   for (Record rec = mypacket.cur_record();
-        rec != NULL;
-        rec++) {
-
    }
-*/
-
-
 }

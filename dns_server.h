@@ -3,6 +3,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <linux/if_ether.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -19,17 +20,16 @@
 #include "smartalloc.h"
 #include "udp_server.h"
 
-void sigint_handler(int signum);
-
-class DNSServer : public UDPServer {
+class DnsServer : public UdpServer {
   public:
-   DNSServer();
+   DnsServer();
    void Run();
 
   protected:
 
   private:
    const std::string port_;
+   char buf_[ETH_DATA_LEN];
 };
 
 #endif   // _DNS_SERVER_H_
