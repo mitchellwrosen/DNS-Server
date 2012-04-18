@@ -1,4 +1,10 @@
+#ifndef _DNS_PACKET_H_
+#define _DNS_PACKET_H_
+
 #include <stdint.h>
+
+#include "dns_query.h"
+#include "dns_resource_record.h"
 
 namespace dns_packet_constants {
 extern const int kQrFlagQuery;
@@ -29,23 +35,6 @@ extern const int kResponseCodeNotZone;
 class DnsPacket {
   public:
    DnsPacket(char* data);
-
-   class Query {
-     public:
-      Query(DnsPacket& packet);
-
-      // Getters
-      std::string name() { return name_; }
-      uint16_t type() { return type_; }
-      uint16_t clz() { return clz_; }
-
-     private:
-      DnsPacket& packet_;
-
-      std::string name_;
-      uint16_t type_;
-      uint16_t clz_;
-   };
 
    class ResourceRecord {
      public:
@@ -81,9 +70,6 @@ class DnsPacket {
       uint16_t rcode:4;
    } __attribute__((packed));
 
-   friend class Query;
-   friend class ResourceRecord;
-
    // Static methods for creating DNS Packets. Each returns a pointer to the
    // next character in the buffer
    // Requires fields to be in network order
@@ -95,16 +81,14 @@ class DnsPacket {
    static uint16_t ConstructFlags(bool qr_flag, uint8_t opcode, bool aa_flag,
          bool tc_flag, bool rd_flag, bool ra_flag, uint8_t rcode);
 
-   // Gets the current query. Returns NULL if the current record is not a query
-   // (i.e. is a ResourceRecord) (TODO)
-   Query GetQuery();
+   // Gets the name pointed to by *p, advances *p to the next field (type)
+   static std::string GetName(char** p);
 
-   // Gets the current resource record. Returns NULL if the current record is
-   // not a resource record (i.e. is a Query) (TODO)
-   ResourceRecord GetResourceRecord();
+   // Advances *p to the next field (type)
+   void AdvancePastName(char** p);
 
-   // Gets the name pointed to by cur_, advances cur_ accordingly.
-   std::string GetName();
+   // Advances *p to the next ResourceRecord
+   void AdvanceToNextResourceRecord(char** p);
 
    // Prints the entire packet and resets the cur_ pointer.
    void Print();
@@ -120,23 +104,30 @@ class DnsPacket {
 
    // Getters
    char* data() { return data_; }
-
-   uint16_t id();
-   uint16_t flags();
-   uint16_t queries();
-   uint16_t answer_rrs();
-   uint16_t authority_rrs();
-   uint16_t additional_rrs();
+   uint16_t id() { return id_; }
+   uint16_t flags() { return flags_; }
+   uint16_t queries() { return queries_; }
+   uint16_t answer_rrs() { return answer_rrs_; }
+   uint16_t authority_rrs() { return authority_rrs_; }
+   uint16_t additional_rrs() { return additional_rrs_; }
+   DnsQuery GetQuery() { return query_; }
+   DnsResourceRecord GetAnswerResourceRecord(int index);
+   DnsResourceRecord GetAuthorityResourceRecord(int index);
+   DnsResourceRecord GetAdditionalResourceRecord(int index);
 
   private:
    char* data_;
-   char* cur_; // Points to the next record to be fetched
-   int cur_record_num_;
-
    uint16_t id_;
    uint16_t flags_;
    uint16_t queries_;
    uint16_t answer_rrs_;
    uint16_t authority_rrs_;
    uint16_t additional_rrs_;
+
+   DnsQuery query_; // only 1
+   std::vector<char*> answer_rrs_vec_;
+   std::vector<char*> authority_rrs_vec_;
+   std::vector<char*> additional_rrs_vec_;
 };
+
+#endif   // _DNS_PACKET_H_

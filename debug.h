@@ -15,3 +15,10 @@
       exit(EXIT_FAILURE);\
    }\
 }
+
+#define LOGGING true
+#define LOG1(str, arg1); {\
+   if (LOGGING)\
+      std::cout << str << arg1 << std::endl;\
+}
+

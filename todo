@@ -1,0 +1,10 @@
+Move RR into its own file
+Make DnsQuery shallow (not going to cache it)
+Work on cache (contains RRs). Going to be a <domain name, RR> tuple, where
+   domain name is in DNS format (0x03 www 0x06 google 0x03 com)
+Deep copy every RR because they will *all* be cached
+Timers to decrement TTL of cache
+
+Things I can put off:
+Multiple clients
+IPv6

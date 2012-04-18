@@ -23,11 +23,15 @@
 class DnsServer : public UdpServer {
   public:
    DnsServer();
+   virtual ~DnsServer();
+
    void Run();
 
   protected:
 
   private:
+   DnsCache cache;
+
    const std::string port_;
    char buf_[ETH_DATA_LEN];
 };

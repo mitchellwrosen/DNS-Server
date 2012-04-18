@@ -5,6 +5,8 @@
 #include <iostream>
 
 #include "dns_packet.h"
+#include "dns_query.h"
+#include "dns_resource_record.h"
 
 namespace dns_packet_constants {
 const int kQrFlagQuery = 0;
@@ -27,7 +29,7 @@ const int kResponseCodeYxRrSet = 7;
 const int kResponseCodeNxRrSet = 8;
 const int kResponseCodeNotAuth = 9;
 const int kResponseCodeNotZone = 10;
-} 
+}
 
 namespace {
 const int kIdOffset = 0;
@@ -36,31 +38,106 @@ const int kQueriesOffset = 4;
 const int kAnswerRrsOffset = 6;
 const int kAuthorityRrsOffset = 8;
 const int kAdditionalRrsOffset = 10;
-const int kFirstRecordOffset = 12;
+const int kFirstQueryOffset = 12;
 }
 
 using namespace dns_packet_constants;
 
-// DnsPacket
 DnsPacket::DnsPacket(char* data)
       : data_(data),
-        cur_(data + kFirstRecordOffset),
         id_(ntohs(data[kIdOffset])),
         flags_(data[kFlagsOffset]),
         queries_(ntohs(data[kQueriesOffset])),
         answer_rrs_(ntohs(data[kAnswerRrsOffset])),
         authority_rrs_(ntohs(data[kAuthorityRrsOffset])),
-        additional_rrs_(ntohs(data[kAdditionalRrsOffset])) {
+        additional_rrs_(ntohs(data[kAdditionalRrsOffset])),
+        query_(data + kFirstQueryOffset) {
+   // If queries != 1, we'll respond with a format error later
+   if (queries_ == 1) {
+      char* p = data + kFirstQueryOffset;
+      int i;
+
+      // Advance to first rr (after query)
+      while (*p) p++;
+      p += 4;  // 2 bytes of type, 2 bytes of class
+
+      // Push answer rrs pointers
+      for (i = 0; i < answer_rrs_; ++i) {
+         answer_rrs_list_.push_back(p);
+         AdvanceToNextResourceRecord(&p);
+      }
+
+      // Push authority rrs pointers
+      for (i = 0; i < authority_rrs_; ++i) {
+         authority_rrs_list_.push_back(p);
+         AdvanceToNextResourceRecord(&p);
+      }
+
+      // Push additional rrs pointers
+      for (i = 0; i < additional_rrs_; ++i) {
+         additional_rrs_list_.push_back(p);
+         AdvanceToNextResourceRecord(&p);
+      }
+   }
+}
+
+void DnsPacket::AdvanceToNextResourceRecord(char** p) {
+   AdvancePastName(p);
+
+   // 2 type, 2 class, 4 ttl, 2 data len, |data len| data
+   *p += 10 + ntohs(*((uint16_t*) *(p + 8)));
+}
+
+void DnsPacket::AdvancePastName(char** p) {
+   while (**p) {
+      *p += **p + 1;
+      if ((**p & 0xc0) == 0xc0) {
+         *p += 2;
+         return;
+      }
+   }
+
+   *p++; // Get past null byte
+}
+
+// static
+std::string DnsPacket::GetName(char** p) {
+   bool ptr_found = false;
+   char* strp = *p;
+   std::string name;
+
+   while (*strp) {
+      if ((*strp & 0xc0) == 0xc0) {
+         if (!ptr_found) {
+            ptr_found = true;
+            *p = strp + 2;
+         }
+         strp = data_ + ntohs(*((uint16_t*) strp) & 0x3FFF);
+      }
+
+      // strp is now pointing at a number. append that many chars to name,
+      // beginning with strp + 1
+      name.append(strp + 1, *strp);
+      strp += *strp + 1;
+   }
+
+   // If a pointer was used to resolve the name, *p was already set.
+   // Otherwise, strp is pointing at the null byte after the name. Set *p
+   // accordingly.
+   if (!ptr_found)
+      *p = strp + 1;
+
+   return name;
 }
 
 // static
 char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
       uint8_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
-      uint8_t rcode, uint16_t queries, uint16_t answer_rrs, 
+      uint8_t rcode, uint16_t queries, uint16_t answer_rrs,
       uint16_t authority_rrs, uint16_t additional_rrs) {
    memcpy(buf, &id, sizeof(uint16_t));
-   
-   uint16_t flags = ConstructFlags(qr_flag, opcode, aa_flag, tc_flag, 
+
+   uint16_t flags = ConstructFlags(qr_flag, opcode, aa_flag, tc_flag,
       rd_flag, ra_flag, rcode);
    memcpy(buf + 2, &flags, sizeof(uint16_t));
 
@@ -71,9 +148,9 @@ char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
 
    return buf + 12;
 }
-   
+
 // static
-uint16_t DnsPacket::ConstructFlags(bool qr_flag, uint8_t opcode, 
+uint16_t DnsPacket::ConstructFlags(bool qr_flag, uint8_t opcode,
       bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag, uint8_t rcode) {
    Flags flags;
    memset(&flags, 0, sizeof(Flags));
@@ -90,43 +167,8 @@ uint16_t DnsPacket::ConstructFlags(bool qr_flag, uint8_t opcode,
    return htons(*reinterpret_cast<uint16_t*>(&flags));
 }
 
-DnsPacket::Query DnsPacket::GetQuery() {
-   Query query(*this);
-   return query;
-}
-
-DnsPacket::ResourceRecord DnsPacket::GetResourceRecord() {
-   ResourceRecord rr(*this);
-   return rr;
-}
-
-std::string DnsPacket::GetName() {
-   bool ptr_found = false;
-   char* p = cur_;
-   std::string name;
-
-   while (*p) {
-      if ((*p & 0xc0) == 0xc0) {
-         if (!ptr_found) {
-            ptr_found = true;
-            cur_ = p + 2;
-         }
-         p = cur_ + ntohs(*((uint16_t*) p) & 0x3FFF);
-      }
-
-      // p is now pointing at a number. append that many chars to name,
-      // beginning with p + 1
-      name.append(p + 1, *p);
-      p += *p + 1;
-   }
-   
-   // If a pointer was used to resolve the name, cur_ was already set.
-   // Otherwise, p is pointing at the null byte after the name. Set cur_
-   // accordingly.
-   if (!ptr_found)
-      cur_ = p + 1;
-
-   return name;
+DnsResourceRecord GetAnswerResourceRecord(int index) {
+   return ResourceRecord(answer_rrs_vec_.at(indec));
 }
 
 void DnsPacket::Print() {
@@ -135,12 +177,12 @@ void DnsPacket::Print() {
    std::cout << "DNS Packet" << std::endl;
    std::cout << "==========" << std::endl;
    std::cout << "Id: %d" << id() << std::endl;
-   
+
    if (qr_flag() == kQrFlagQuery)
       std::cout << "Query/Response: 1 (Response)" << std::endl;
    else
       std::cout << "Query/Response: 0 (Query)" << std::endl;
-   
+
    std::string opcode_str;
    switch (opcode()) {
       case kOpcodeQuery:
@@ -154,10 +196,10 @@ void DnsPacket::Print() {
          break;
       case kOpcodeNotify:
          opcode_str = "Notify";
-         break;                            
+         break;
       case kOpcodeUpdate:
          opcode_str = "Update";
-         break;                            
+         break;
       default:
          opcode_str = "UNRECOGNIZED";
          break;
@@ -168,7 +210,7 @@ void DnsPacket::Print() {
    std::cout << "Truncation: %d" << tc_flag() << std::endl;
    std::cout << "Recursion Desired: %d" << rd_flag() << std::endl;
    std::cout << "Recursion Available: %d" << ra_flag() << std::endl;
-   
+
    std::string rcode_str;
    switch(rcode()) {
       case kResponseCodeNoError:
@@ -221,7 +263,7 @@ void DnsPacket::Print() {
       ResourceRecord rr = GetResourceRecord();
       std::cout << "Answer RR %d:" << i + 1 << std::endl;
    }
-   
+
    for (i = 0; i < authority_rrs_; ++i) {
       ResourceRecord rr = GetResourceRecord();
       std::cout << "Authority RR %d:" << i + 1 << std::endl;
@@ -231,40 +273,6 @@ void DnsPacket::Print() {
       ResourceRecord rr = GetResourceRecord();
       std::cout << "Additional RR %d:" << i + 1 << std::endl;
    }
-}
-
-uint16_t DnsPacket::id() {
-   return htons((uint16_t) data_[kIdOffset]);
-}
-
-uint16_t DnsPacket::flags() {
-   return (uint16_t) data_[kFlagsOffset];
-}
-
-uint16_t DnsPacket::queries() {
-   return htons((uint16_t) data_[kQueriesOffset]);
-}
-
-uint16_t DnsPacket::answer_rrs() {
-   return htons((uint16_t) data_[kAnswerRrsOffset]);
-}
-
-uint16_t DnsPacket::authority_rrs() {
-   return htons((uint16_t) data_[kAuthorityRrsOffset]);
-}
-
-uint16_t DnsPacket::additional_rrs() {
-   return htons((uint16_t) data_[kAdditionalRrsOffset]);
-}
-
-
-// DnsPacket::Query
-DnsPacket::Query::Query(DnsPacket& packet)
-      : packet_(packet) {
-   name_ = packet_.GetName();
-   type_ = ntohs((uint16_t) (packet_.cur_[0]));
-   clz_ = ntohs((uint16_t) (packet_.cur_[2]));
-   packet_.cur_ += 4;
 }
 
 // DnsPacket::ResourceRecord
