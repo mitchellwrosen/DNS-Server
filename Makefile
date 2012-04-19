@@ -23,7 +23,7 @@ endif
 
 all:  dns_server-$(EXEC_SUFFIX)
 
-dns_server-$(EXEC_SUFFIX): main.cpp dns_server.cpp dns_packet.cpp udp_server.cpp server.cpp $(COMMON)
+dns_server-$(EXEC_SUFFIX): main.cpp dns_server.cpp dns_packet.cpp dns_query.cpp dns_resource_record.cpp dns_cache.cpp udp_server.cpp server.cpp $(COMMON)
 	$(CC) $(CFLAGS) $(OSINC) $(OSLIB) $(OSDEF) -o $@ $^
 
 handin: README

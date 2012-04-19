@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <vector>
+
 #include "dns_query.h"
 #include "dns_resource_record.h"
 
@@ -36,28 +38,6 @@ class DnsPacket {
   public:
    DnsPacket(char* data);
 
-   class ResourceRecord {
-     public:
-      ResourceRecord(DnsPacket& packet);
-
-      // Getters
-      std::string name() { return name_; }
-      uint16_t type() { return type_; }
-      uint16_t clz() { return clz_; }
-      uint32_t ttl() { return ttl_; }
-      uint16_t data_len() { return data_len_; }
-      char* data() { return data_; }
-
-     private:
-      DnsPacket& packet_;
-
-      std::string name_;
-      uint16_t type_;
-      uint16_t clz_;
-      uint32_t ttl_;
-      uint16_t data_len_;
-      char* data_;
-   };
 
    struct Flags {
       uint16_t qr:1;
@@ -82,16 +62,16 @@ class DnsPacket {
          bool tc_flag, bool rd_flag, bool ra_flag, uint8_t rcode);
 
    // Gets the name pointed to by *p, advances *p to the next field (type)
-   static std::string GetName(char** p);
+   static std::string GetName(char* packet, char** strpp);
 
    // Advances *p to the next field (type)
-   void AdvancePastName(char** p);
+   void AdvancePastName(char** strpp);
 
    // Advances *p to the next ResourceRecord
-   void AdvanceToNextResourceRecord(char** p);
+   void AdvanceToNextResourceRecord(char** rrpp);
 
-   // Prints the entire packet and resets the cur_ pointer.
    void Print();
+   void PrintHeader();
 
    // Flags field
    bool qr_flag() { return flags() & 0x8000; }

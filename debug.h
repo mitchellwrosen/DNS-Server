@@ -1,3 +1,6 @@
+#ifndef _DEBUG_H_
+#define _DEBUG_H_
+
 // For system calls that set errno and return non-zero on error
 #define SYSCALL(call, msg); {\
    if (call < 0) {\
@@ -22,3 +25,4 @@
       std::cout << str << arg1 << std::endl;\
 }
 
+#endif   // _DEBUG_H_

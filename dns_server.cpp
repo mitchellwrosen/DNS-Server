@@ -24,9 +24,6 @@ const bool logging = true;
 
 DnsServer::DnsServer()
       : port_("53") {
-   // Create cache
-   cache_ = new DnsCache();
-
    // set up server hints struct
    struct addrinfo hints;
 
@@ -40,14 +37,11 @@ DnsServer::DnsServer()
 }
 
 DnsServer::~DnsServer() {
-   delete cache_;
 }
 
 void DnsServer::Run() {
    struct sockaddr_storage client_addr;
    socklen_t client_addr_len = sizeof(struct sockaddr_storage);
-
-
 
    // Main event loop
    if (Server::HasDataToRead(sock_)) {
@@ -67,7 +61,7 @@ void DnsServer::Run() {
       }
       else {
          // Query
-         DNSPacket::Query query = packet.GetQuery();
+         DnsQuery query = packet.GetQuery();
 
 
       }

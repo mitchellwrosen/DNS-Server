@@ -3,11 +3,13 @@
 
 #include <stdint.h>
 
-#include "dns_packet.h"
+#include <string>
 
 class DnsQuery {
   public:
    DnsQuery(char* data);
+
+   void Print();
 
    // Getters
    std::string name() { return name_; }

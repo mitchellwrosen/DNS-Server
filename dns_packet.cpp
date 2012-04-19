@@ -63,56 +63,56 @@ DnsPacket::DnsPacket(char* data)
 
       // Push answer rrs pointers
       for (i = 0; i < answer_rrs_; ++i) {
-         answer_rrs_list_.push_back(p);
+         answer_rrs_vec_.push_back(p);
          AdvanceToNextResourceRecord(&p);
       }
 
       // Push authority rrs pointers
       for (i = 0; i < authority_rrs_; ++i) {
-         authority_rrs_list_.push_back(p);
+         authority_rrs_vec_.push_back(p);
          AdvanceToNextResourceRecord(&p);
       }
 
       // Push additional rrs pointers
       for (i = 0; i < additional_rrs_; ++i) {
-         additional_rrs_list_.push_back(p);
+         additional_rrs_vec_.push_back(p);
          AdvanceToNextResourceRecord(&p);
       }
    }
 }
 
-void DnsPacket::AdvanceToNextResourceRecord(char** p) {
-   AdvancePastName(p);
+void DnsPacket::AdvanceToNextResourceRecord(char** rrpp) {
+   AdvancePastName(rrpp);
 
    // 2 type, 2 class, 4 ttl, 2 data len, |data len| data
-   *p += 10 + ntohs(*((uint16_t*) *(p + 8)));
+   *rrpp += 10 + ntohs(*((uint16_t*) *(rrpp + 8)));
 }
 
-void DnsPacket::AdvancePastName(char** p) {
-   while (**p) {
-      *p += **p + 1;
-      if ((**p & 0xc0) == 0xc0) {
-         *p += 2;
+void DnsPacket::AdvancePastName(char** strpp) {
+   while (**strpp) {
+      *strpp += **strpp + 1;
+      if ((**strpp & 0xc0) == 0xc0) {
+         *strpp += 2;
          return;
       }
    }
 
-   *p++; // Get past null byte
+   *strpp = *strpp + 1; // Get past null byte
 }
 
 // static
-std::string DnsPacket::GetName(char** p) {
+std::string DnsPacket::GetName(char* packet, char** strpp) {
    bool ptr_found = false;
-   char* strp = *p;
+   char* strp = *strpp;
    std::string name;
 
    while (*strp) {
       if ((*strp & 0xc0) == 0xc0) {
          if (!ptr_found) {
             ptr_found = true;
-            *p = strp + 2;
+            *strpp = strp + 2;
          }
-         strp = data_ + ntohs(*((uint16_t*) strp) & 0x3FFF);
+         strp = packet + ntohs(*((uint16_t*) strp) & 0x3FFF);
       }
 
       // strp is now pointing at a number. append that many chars to name,
@@ -125,7 +125,7 @@ std::string DnsPacket::GetName(char** p) {
    // Otherwise, strp is pointing at the null byte after the name. Set *p
    // accordingly.
    if (!ptr_found)
-      *p = strp + 1;
+      *strpp = strp + 1;
 
    return name;
 }
@@ -167,13 +167,41 @@ uint16_t DnsPacket::ConstructFlags(bool qr_flag, uint8_t opcode,
    return htons(*reinterpret_cast<uint16_t*>(&flags));
 }
 
-DnsResourceRecord GetAnswerResourceRecord(int index) {
-   return ResourceRecord(answer_rrs_vec_.at(indec));
+DnsResourceRecord DnsPacket::GetAnswerResourceRecord(int index) {
+   return DnsResourceRecord(data_, answer_rrs_vec_.at(index));
+}
+
+DnsResourceRecord DnsPacket::GetAuthorityResourceRecord(int index) {
+   return DnsResourceRecord(data_, authority_rrs_vec_.at(index));
+}
+
+DnsResourceRecord DnsPacket::GetAdditionalResourceRecord(int index) {
+   return DnsResourceRecord(data_, additional_rrs_vec_.at(index));
 }
 
 void DnsPacket::Print() {
+   if (queries_ != 1) {
+      std::cout << "Error in DnsPacket::Print(): Packet has %d queries."
+            << queries_ << std::endl;
+      return;
+   }
+
    int i;
 
+   PrintHeader();
+   query_.Print();
+
+   for (i = 0; i < answer_rrs_; ++i)
+      GetAnswerResourceRecord(i).Print();
+
+   for (i = 0; i < authority_rrs_; ++i)
+      GetAuthorityResourceRecord(i).Print();
+
+   for (i = 0; i < additional_rrs_; ++i)
+      GetAdditionalResourceRecord(i).Print();
+}
+
+void DnsPacket::PrintHeader() {
    std::cout << "DNS Packet" << std::endl;
    std::cout << "==========" << std::endl;
    std::cout << "Id: %d" << id() << std::endl;
@@ -246,43 +274,8 @@ void DnsPacket::Print() {
    }
    std::cout << "Response Code: %d (%s)" << rcode() << rcode_str << std::endl;
 
-   std::cout << "Queries: %d" << queries() << std::endl;
-   std::cout << "Answer RRs: %d" << answer_rrs() << std::endl;
-   std::cout << "Authority RRs: %d" << authority_rrs() << std::endl;
-   std::cout << "Additional RRs: %d" << additional_rrs() << std::endl;
-
-   for (i = 0; i < queries_; ++i) {
-      Query query = GetQuery();
-      std::cout << "Query %d:" << i + 1 << std::endl;
-      std::cout << "   Name: %s" << query.name() << std::endl;
-      std::cout << "   Type: %d" << query.type() << std::endl;
-      std::cout << "   Class: %d" << query.clz() << std::endl;
-   }
-
-   for (i = 0; i < answer_rrs_; ++i) {
-      ResourceRecord rr = GetResourceRecord();
-      std::cout << "Answer RR %d:" << i + 1 << std::endl;
-   }
-
-   for (i = 0; i < authority_rrs_; ++i) {
-      ResourceRecord rr = GetResourceRecord();
-      std::cout << "Authority RR %d:" << i + 1 << std::endl;
-   }
-
-   for (i = 0; i < additional_rrs_; ++i) {
-      ResourceRecord rr = GetResourceRecord();
-      std::cout << "Additional RR %d:" << i + 1 << std::endl;
-   }
-}
-
-// DnsPacket::ResourceRecord
-DnsPacket::ResourceRecord::ResourceRecord(DnsPacket& packet)
-      : packet_(packet) {
-   name_ = packet_.GetName();
-   type_ = ntohs((uint16_t) (packet_.cur_[0]));
-   clz_ = ntohs((uint16_t) (packet_.cur_[2]));
-   ttl_ = ntohl((uint32_t) (packet_.cur_[4]));
-   data_len_ = ntohs((uint16_t) (packet_.cur_[8]));
-   data_ = packet_.cur_ + 10;
-   packet_.cur_ = data_ + data_len_;
+   std::cout << "Queries: %d" << queries_ << std::endl;
+   std::cout << "Answer RRs: %d" << answer_rrs_ << std::endl;
+   std::cout << "Authority RRs: %d" << authority_rrs_ << std::endl;
+   std::cout << "Additional RRs: %d" << additional_rrs_ << std::endl;
 }

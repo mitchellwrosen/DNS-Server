@@ -18,6 +18,8 @@
 
 #include "checksum.h"
 #include "smartalloc.h"
+
+#include "dns_cache.h"
 #include "udp_server.h"
 
 class DnsServer : public UdpServer {
@@ -30,7 +32,7 @@ class DnsServer : public UdpServer {
   protected:
 
   private:
-   DnsCache cache;
+   DnsCache cache_;
 
    const std::string port_;
    char buf_[ETH_DATA_LEN];
