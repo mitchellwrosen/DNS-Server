@@ -60,9 +60,17 @@ void DnsServer::Run() {
          // Response
       }
       else {
-         // Query
+         // New query
          DnsQuery query = packet.GetQuery();
          query.Print();
+
+         // Add a new entry in the stack map
+         DnsQueryStackMap::iterator it;
+         it = query_stack_map_.insert(pair<int, DnsQuery>(packet.id(), DnsQueryStack()));
+
+         // Push the query to the stack
+         it->second.push(query);
+
          Respond(query);
       }
 /*
