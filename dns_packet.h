@@ -61,14 +61,10 @@ class DnsPacket {
    static uint16_t ConstructFlags(bool qr_flag, uint8_t opcode, bool aa_flag,
          bool tc_flag, bool rd_flag, bool ra_flag, uint8_t rcode);
 
+   DnsResourceRecord GetResourceRecord();
+
    // Gets the name pointed to by *p, advances *p to the next field (type)
-   static std::string GetName(char* packet, char** strpp);
-
-   // Advances *p to the next field (type)
-   void AdvancePastName(char** strpp);
-
-   // Advances *p to the next ResourceRecord
-   void AdvanceToNextResourceRecord(char** rrpp);
+   std::string GetName(char* packet, char** strpp);
 
    void Print();
    void PrintHeader();
@@ -91,9 +87,6 @@ class DnsPacket {
    uint16_t authority_rrs() { return authority_rrs_; }
    uint16_t additional_rrs() { return additional_rrs_; }
    DnsQuery GetQuery() { return query_; }
-   DnsResourceRecord GetAnswerResourceRecord(int index);
-   DnsResourceRecord GetAuthorityResourceRecord(int index);
-   DnsResourceRecord GetAdditionalResourceRecord(int index);
 
   private:
    char* data_;
@@ -105,9 +98,6 @@ class DnsPacket {
    uint16_t additional_rrs_;
 
    DnsQuery query_; // only 1
-   std::vector<char*> answer_rrs_vec_;
-   std::vector<char*> authority_rrs_vec_;
-   std::vector<char*> additional_rrs_vec_;
 };
 
 #endif   // _DNS_PACKET_H_

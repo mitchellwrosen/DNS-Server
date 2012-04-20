@@ -6,13 +6,13 @@
 #include "dns_packet.h"
 #include "dns_query.h"
 
-DnsQuery::DnsQuery(char* data) {
-   // NULL pointer to packet, because the name is always going to be a full
-   // string. Thus there will be no resolving pointers by the offset into the
-   // packet.
-   name_ = DnsPacket::GetName(NULL, &data);
-   type_ = ntohs(*((uint16_t*) data));
-   clz_ = ntohs(*((uint16_t*) (data + 2)));
+DnsQuery::DnsQuery(DnsPacket& packet) {
+   name_ = packet.GetName();
+
+   type_ = ntohs(*((uint16_t*) packet.cur_));
+   clz_ = ntohs(*((uint16_t*) (packet.cur_ + 2)));
+
+   packet.cur_ += 4;
 }
 
 void DnsQuery::Print() {

@@ -5,9 +5,11 @@
 
 #include <string>
 
+#include "dns_packet.h"
+
 class DnsQuery {
   public:
-   DnsQuery(char* data);
+   DnsQuery(DnsPacket& data);
 
    void Print();
 

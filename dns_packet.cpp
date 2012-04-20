@@ -45,87 +45,41 @@ using namespace dns_packet_constants;
 
 DnsPacket::DnsPacket(char* data)
       : data_(data),
+        cur_(data + kFirstQueryOffset);
         id_(ntohs(data[kIdOffset])),
         flags_(data[kFlagsOffset]),
         queries_(ntohs(data[kQueriesOffset])),
         answer_rrs_(ntohs(data[kAnswerRrsOffset])),
         authority_rrs_(ntohs(data[kAuthorityRrsOffset])),
-        additional_rrs_(ntohs(data[kAdditionalRrsOffset])),
-        query_(data + kFirstQueryOffset) {
-   // If queries != 1, we'll respond with a format error later
-   if (queries_ == 1) {
-      char* p = data + kFirstQueryOffset;
-      int i;
-
-      // Advance to first rr (after query)
-      while (*p) p++;
-      p += 4;  // 2 bytes of type, 2 bytes of class
-
-      // Push answer rrs pointers
-      for (i = 0; i < answer_rrs_; ++i) {
-         answer_rrs_vec_.push_back(p);
-         AdvanceToNextResourceRecord(&p);
-      }
-
-      // Push authority rrs pointers
-      for (i = 0; i < authority_rrs_; ++i) {
-         authority_rrs_vec_.push_back(p);
-         AdvanceToNextResourceRecord(&p);
-      }
-
-      // Push additional rrs pointers
-      for (i = 0; i < additional_rrs_; ++i) {
-         additional_rrs_vec_.push_back(p);
-         AdvanceToNextResourceRecord(&p);
-      }
-   }
+        additional_rrs_(ntohs(data[kAdditionalRrsOffset])) {
+   query_(*this);
 }
 
-void DnsPacket::AdvanceToNextResourceRecord(char** rrpp) {
-   AdvancePastName(rrpp);
-
-   // 2 type, 2 class, 4 ttl, 2 data len, |data len| data
-   *rrpp += 10 + ntohs(*((uint16_t*) *(rrpp + 8)));
-}
-
-void DnsPacket::AdvancePastName(char** strpp) {
-   while (**strpp) {
-      *strpp += **strpp + 1;
-      if ((**strpp & 0xc0) == 0xc0) {
-         *strpp += 2;
-         return;
-      }
-   }
-
-   *strpp = *strpp + 1; // Get past null byte
-}
-
-// static
-std::string DnsPacket::GetName(char* packet, char** strpp) {
+std::string DnsPacket::GetName() {
    bool ptr_found = false;
-   char* strp = *strpp;
+   char* p = cur_;
    std::string name;
 
-   while (*strp) {
-      if ((*strp & 0xc0) == 0xc0) {
+   while (*p) {
+      if ((*p & 0xc0) == 0xc0) {
          if (!ptr_found) {
             ptr_found = true;
-            *strpp = strp + 2;
+            cur_ = p + 2;
          }
-         strp = packet + ntohs(*((uint16_t*) strp) & 0x3FFF);
+         p = packet + ntohs(*((uint16_t*) p) & 0x3FFF);
       }
 
-      // strp is now pointing at a number. append that many chars to name,
-      // beginning with strp + 1
-      name.append(strp + 1, *strp);
-      strp += *strp + 1;
+      // p is now pointing at a number. append that many chars to name,
+      // beginning with p + 1
+      name.append(p + 1, *p);
+      p += *p + 1;
    }
 
-   // If a pointer was used to resolve the name, *p was already set.
-   // Otherwise, strp is pointing at the null byte after the name. Set *p
+   // If a pointer was used to resolve the name, cur_ was already set.
+   // Otherwise, p is pointing at the null byte after the name. Set cur_
    // accordingly.
    if (!ptr_found)
-      *strpp = strp + 1;
+      cur_ = p + 1;
 
    return name;
 }
@@ -167,16 +121,9 @@ uint16_t DnsPacket::ConstructFlags(bool qr_flag, uint8_t opcode,
    return htons(*reinterpret_cast<uint16_t*>(&flags));
 }
 
-DnsResourceRecord DnsPacket::GetAnswerResourceRecord(int index) {
-   return DnsResourceRecord(data_, answer_rrs_vec_.at(index));
-}
-
-DnsResourceRecord DnsPacket::GetAuthorityResourceRecord(int index) {
-   return DnsResourceRecord(data_, authority_rrs_vec_.at(index));
-}
-
-DnsResourceRecord DnsPacket::GetAdditionalResourceRecord(int index) {
-   return DnsResourceRecord(data_, additional_rrs_vec_.at(index));
+DnsResourceRecord DnsPacket::GetResourceRecord() {
+   DnsResourceRecord rr(*this);
+   return rr;
 }
 
 void DnsPacket::Print() {
