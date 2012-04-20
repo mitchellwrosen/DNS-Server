@@ -6,13 +6,15 @@
 #include "dns_resource_record.h"
 #include "dns_packet.h"
 
-DnsResourceRecord::DnsResourceRecord(char* packet, char* rr) {
-   name_ = DnsPacket::GetName(packet, &rr);
-   type_ = ntohs(*((uint16_t*) rr));
-   clz_ = ntohs(*((uint16_t*) (rr + 2)));
-   ttl_ = ntohl(*((uint32_t*) (rr + 4)));
-   data_len_ = ntohs(*((uint16_t*) (rr + 8)));
-   data_ = rr + 10;
+DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
+   name_ = packet.GetName();
+   type_ = ntohs(*((uint16_t*) packet.cur_));
+   clz_ = ntohs(*((uint16_t*) (packet.cur_ + 2)));
+   ttl_ = ntohl(*((uint32_t*) (packet.cur_ + 4)));
+   data_len_ = ntohs(*((uint16_t*) (packet.cur_ + 8)));
+   data_ = packet.cur_ + 10;
+   
+   packet.cur_ += 10 + data_len; 
 }
 
 void DnsResourceRecord::Print() {

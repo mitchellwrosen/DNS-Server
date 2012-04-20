@@ -7,7 +7,7 @@
 
 class DnsResourceRecord {
   public:
-   DnsResourceRecord(char* packet, char* rr);
+   DnsResourceRecord(DnsPacket& packet);
 
    void Print();
    void PrintData(int cutoff);
