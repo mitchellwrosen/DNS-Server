@@ -18,4 +18,19 @@
 #include "dns_cache.h"
 
 DnsCache::DnsCache() {
+   // inialize with root servers
+}
+
+std::list<DnsResourceRecord> DnsCache::Get(DnsQuery& query) {
+   Cache::iterator it = cache_.find(query);
+   
+   // Cache hit - return it
+   if (it != cache_.end()) {
+      
+   }
+
+   // Cache miss - if recursive,  
+   else {
+      //Get(query, recursive);
+   }
 }

@@ -8,11 +8,16 @@
 
 DnsQuery::DnsQuery(DnsPacket& packet) {
    name_ = packet.GetName();
+   cur_ = name_.begin();
 
    type_ = ntohs(*((uint16_t*) packet.cur_));
    clz_ = ntohs(*((uint16_t*) (packet.cur_ + 2)));
 
    packet.cur_ += 4;
+}
+
+void DnsQuery::AdvanceCur() {
+   cur_ += *cur;
 }
 
 void DnsQuery::Print() {

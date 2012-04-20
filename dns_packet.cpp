@@ -69,9 +69,9 @@ std::string DnsPacket::GetName() {
          p = packet + ntohs(*((uint16_t*) p) & 0x3FFF);
       }
 
-      // p is now pointing at a number. append that many chars to name,
-      // beginning with p + 1
-      name.append(p + 1, *p);
+      // p is now pointing at a number. append that many chars to name, plus
+      // one for the number itself
+      name.append(p, *p + 1);
       p += *p + 1;
    }
 

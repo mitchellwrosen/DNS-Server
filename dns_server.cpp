@@ -62,8 +62,8 @@ void DnsServer::Run() {
       else {
          // Query
          DnsQuery query = packet.GetQuery();
-
-
+         query.Print();
+         Respond(query);
       }
 /*
       for (int i = 0; i < mypacket.queries(); ++i) {

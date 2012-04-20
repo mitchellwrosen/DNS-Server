@@ -13,9 +13,12 @@
 #include <unistd.h>
 
 #include <map>
+#include <pair>
+#include <vector>
 
 #include "smartalloc.h"
 
+#include "dns_query"
 #include "dns_resource_record.h"
 #include "dns_packet.h"
 
@@ -23,9 +26,14 @@ class DnsCache {
   public:
    DnsCache();
 
+   std::list<DnsResourceRecord> Get(DnsQuery& query);
+
+   typedef std::map<DnsQuery, std::list<std::pair<
+         time_t, DnsResourceRecord> > > Cache;
+  
   private:
-   // Mapping of strings to resource records
-   std::map<std::string, DnsResourceRecord> map_;
+
+   Cache cache_;
 };
 
 #endif   // _DNS_CACHE_H_

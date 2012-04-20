@@ -11,6 +11,9 @@ class DnsQuery {
   public:
    DnsQuery(DnsPacket& data);
 
+   // Advances cur_ to point to the next domain octet. 
+   void AdvanceCur();
+
    void Print();
 
    // Getters
@@ -20,6 +23,7 @@ class DnsQuery {
 
   private:
    std::string name_;
+   std::string::const_iterator cur_;
    uint16_t type_;
    uint16_t clz_;
 };
