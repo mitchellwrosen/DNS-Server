@@ -12,9 +12,19 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
    clz_ = ntohs(*((uint16_t*) (packet.cur_ + 2)));
    ttl_ = ntohl(*((uint32_t*) (packet.cur_ + 4)));
    data_len_ = ntohs(*((uint16_t*) (packet.cur_ + 8)));
-   data_ = packet.cur_ + 10;
+   
+   data_ = (char*) malloc(data_len);
+   if (!data_) {
+      fprintf("Malloc failed.\n");
+      exit(EXIT_FAILURE);
+   }
+   data_ = memcpy(data_, packet.cur_ + 10, data_len);
    
    packet.cur_ += 10 + data_len; 
+}
+
+DnsResourceRecord::~DnsResourceRecord() {
+   free(data_);
 }
 
 void DnsResourceRecord::Print() {

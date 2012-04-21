@@ -22,6 +22,8 @@
 
 const bool logging = true;
 
+namespace dns_packet_constants = constants;
+
 DnsServer::DnsServer()
       : port_("53") {
    // set up server hints struct
@@ -64,37 +66,38 @@ void DnsServer::Run() {
          DnsQuery query = packet.GetQuery();
          query.Print();
 
-         // Add a new entry in the stack map
-         DnsQueryStackMap::iterator it;
-         it = query_stack_map_.insert(pair<int, DnsQuery>(packet.id(), DnsQueryStack()));
-
-         // Push the query to the stack
-         it->second.push(query);
-
+         // Respond to query
          Respond(query);
       }
-/*
-      for (int i = 0; i < mypacket.queries(); ++i) {
-         DnsPacket::Query query = mypacket.GetQuery();
-
-      }
-
-      for (int i = 0; i < mypacket.answer_rrs(); ++i) {
-         Dns::ResourceRecord record = mypacket.GetResourceRecord();
-
-      }
-
-      for (int i = 0; i < mypacket.authority_rrs(); ++i) {
-         Dns::ResourceRecord record;
-
-      }
-
-      for (int i = 0; i < mypacket.additional_rrS(); ++i) {
-         Dns::ResourceRecord record;
-
-      }
-*/
    } else {
       std::cout << "No data to read" << std::endl;
+   }
+}
+
+void Respond(DnsQuery query) {
+   switch (query.type()) {
+      if (cache_.get(query)) {
+         //send_response
+      }
+      
+      // not in cache
+      else {
+         // if recursive, query authority name server
+         if (query.rd_()) {
+         
+         }
+
+         // if iterative, respond with all we know
+         else {
+            do {
+               cache_.get(DnsPacket::ShortenName(query.name()),
+                          constants::type::NS,
+                          query.clz());
+            } while (/*cache_.get() == NULL*/);
+         }
+         
+      }
+
+      break;
    }
 }

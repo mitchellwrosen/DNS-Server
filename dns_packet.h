@@ -9,26 +9,58 @@
 #include "dns_resource_record.h"
 
 namespace dns_packet_constants {
-extern const int kQrFlagQuery;
-extern const int kQrFlagResponse;
+namespace qr_flag {
+extern const int Query;
+extern const int Response;
+}
 
-extern const int kOpcodeQuery;
-extern const int kOpcodeInverseQuery;
-extern const int kOpcodeStatus;
-extern const int kOpcodeNotify;
-extern const int kOpcodeUpdate;
+namespace opcode {
+extern const int Query;
+extern const int Query;
+extern const int Status;
+extern const int Notify;
+extern const int Update;
+}
 
-extern const int kResponseCodeNoError;
-extern const int kResponseCodeFormatError;
-extern const int kResponseCodeServerFailure;
-extern const int kResponseCodeNameError;
-extern const int kResponseCodeNotImplemented;
-extern const int kResponseCodeRefused;
-extern const int kResponseCodeYxDomain;
-extern const int kResponseCodeYxRrSet;
-extern const int kResponseCodeNxRrSet;
-extern const int kResponseCodeNotAuth;
-extern const int kResponseCodeNotZone;
+namespace response_code {
+extern const int NoError;
+extern const int FormatError;
+extern const int ServerFailure;
+extern const int NameError;
+extern const int NotImplemented;
+extern const int Refused;
+extern const int YxDomain;
+extern const int YxRrSet;
+extern const int NxRrSet;
+extern const int NotAuth;
+extern const int NotZone;
+}
+
+namespace type {
+extern const int A;
+extern const int NS;
+extern const int MD;
+extern const int MF;
+extern const int CNAME;
+extern const int SOA;
+extern const int MB;
+extern const int MG;
+extern const int MR;
+extern const int Null;
+extern const int WKS;
+extern const int PTR;
+extern const int HINFO;
+extern const int MINFO;
+extern const int MX;
+extern const int TXT;
+}
+
+namespace clz {
+extern const int IN;
+extern const int CS;
+extern const int CH;
+extern const int HS;
+}
 }
 
 // A single DNS packet. A DnsPacket consists of a header and one or more

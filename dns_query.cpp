@@ -8,7 +8,6 @@
 
 DnsQuery::DnsQuery(DnsPacket& packet) {
    name_ = packet.GetName();
-   cur_ = name_.begin();
 
    type_ = ntohs(*((uint16_t*) packet.cur_));
    clz_ = ntohs(*((uint16_t*) (packet.cur_ + 2)));
@@ -16,9 +15,8 @@ DnsQuery::DnsQuery(DnsPacket& packet) {
    packet.cur_ += 4;
 }
 
-void DnsQuery::AdvanceCur() {
-   cur_ += *cur;
-}
+DnsQuery::DnsQuery(std::string& name, int type, int clz)
+   : name_(name), type_(type), clz_(clz) { }
 
 void DnsQuery::Print() {
    std::cout << "Query:" << std::endl;

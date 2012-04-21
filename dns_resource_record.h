@@ -8,6 +8,7 @@
 class DnsResourceRecord {
   public:
    DnsResourceRecord(DnsPacket& packet);
+   virtual ~DnsResourceRecord();
 
    void Print();
    void PrintData(int cutoff);

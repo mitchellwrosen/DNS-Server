@@ -9,26 +9,58 @@
 #include "dns_resource_record.h"
 
 namespace dns_packet_constants {
-const int kQrFlagQuery = 0;
-const int kQrFlagResponse = 1;
+namespace qr_flag {
+const int Query = 0;
+const int Response = 1;
+}
 
-const int kOpcodeQuery = 0;
-const int kOpcodeInverseQuery = 1;
-const int kOpcodeStatus = 2;
-const int kOpcodeNotify = 3;
-const int kOpcodeUpdate = 4;
+namespace opcode {
+const int Query = 0;
+const int InverseQuery = 1;
+const int Status = 2;
+const int Notify = 3;
+const int Update = 4;
+}
 
-const int kResponseCodeNoError = 0;
-const int kResponseCodeFormatError = 1;
-const int kResponseCodeServerFailure = 2;
-const int kResponseCodeNameError = 3;
-const int kResponseCodeNotImplemented = 4;
-const int kResponseCodeRefused = 5;
-const int kResponseCodeYxDomain = 6;
-const int kResponseCodeYxRrSet = 7;
-const int kResponseCodeNxRrSet = 8;
-const int kResponseCodeNotAuth = 9;
-const int kResponseCodeNotZone = 10;
+namespace response_code {
+const int NoError = 0;
+const int FormatError = 1;
+const int ServerFailure = 2;
+const int NameError = 3;
+const int NotImplemented = 4;
+const int Refused = 5;
+const int YxDomain = 6;
+const int YxRrSet = 7;
+const int NxRrSet = 8;
+const int NotAuth = 9;
+const int NotZone = 10;
+}
+
+namespace type {
+const int A = 1;
+const int NS = 2;
+const int MD = 3;
+const int MF = 4;
+const int CNAME = 5;
+const int SOA = 6;
+const int MB = 7;
+const int MG = 8;
+const int MR = 9;
+const int Null = 10;
+const int WKS = 11;
+const int PTR = 12;
+const int HINFO = 13;
+const int MINFO = 14;
+const int MX = 15;
+const int TXT = 16;
+}
+
+namespace clz {
+const int IN = 1;
+const int CS = 2;
+const int CH = 3;
+const int HS = 4;
+}
 }
 
 namespace {

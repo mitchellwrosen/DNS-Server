@@ -1,8 +1,12 @@
-//Make DnsQuery shallow (not going to cache it)
-Work on cache (contains RRs). Going to be a <domain name, RR> tuple, where
-   domain name is in DNS format (0x03 www 0x06 google 0x03 com)
-Timers to decrement TTL of cache
+Todo:
+- Cache insert
+- Comparator for DnsQuery
+- Server logic upon calling cache_.Get();
+- Timers for failed server queries
+- Packet construction functions
+
+Milestone: GET ITERATIVE QUERIES WORKING. *THEN* move on to recursive.
 
 Things I can put off:
-Multiple clients
-IPv6
+- Multiple clients
+- IPv6
