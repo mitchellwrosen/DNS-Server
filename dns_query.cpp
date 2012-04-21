@@ -33,7 +33,7 @@ bool DnsQuery::operator<(const DnsQuery& query) const {
 
 void DnsQuery::Print() {
    std::cout << "Query:" << std::endl;
-   std::cout << "   Name: %s" << name_ << std::endl;
-   std::cout << "   Type: %d" << type_ << std::endl;
-   std::cout << "   Class: %d" << clz_ << std::endl;
+   std::cout << "   Name: " << name_ << std::endl;
+   std::cout << "   Type: " << (int) type_ << std::endl;
+   std::cout << "   Class: " << (int) clz_ << std::endl;
 }

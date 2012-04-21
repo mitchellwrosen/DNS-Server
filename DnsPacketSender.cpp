@@ -45,7 +45,7 @@ int main() {
    }
 
    char buf[512];
-   const char* name = "www.csc.calpoly.edu";
+   const char* name = "\x03\x77\x77\x77\x03\x63\x73\x63\x07\x63\x61\x6c\x70\x6f\x6c\x79\x03\x65\x64\x75";
    int wlen = DnsPacket::ConstructQuery(buf, 
                                         htons(1234),   // id 
                                         htons(constants::opcode::Query),
