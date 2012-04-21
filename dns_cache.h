@@ -66,7 +66,10 @@ class DnsCache {
                      std::vector<DnsResourceRecord>* rrs);
 
 
-   //Insert
+   // Timestamps and insertsthe resource records into the cache with key 
+   // |query|.
+   void Insert(DnsQuery query, 
+               std::vector<DnsResourceRecord> resource_records);
 
    typedef std::pair<time_t, DnsResourceRecord> TimestampedDnsResourceRecord;
    typedef std::map<DnsQuery, std::vector<TimestampedDnsResourceRecord> > Cache;

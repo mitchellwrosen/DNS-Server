@@ -10,7 +10,7 @@ class DnsPacket;
 class DnsQuery {
   public:
    DnsQuery(DnsPacket& data);
-   DnsQuery(std::string& name, int type, int clz);
+   DnsQuery(std::string name, int type, int clz);
 
    bool operator<(const DnsQuery& query) const;
 

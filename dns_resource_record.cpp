@@ -15,14 +15,36 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
    ttl_ = *((uint32_t*) (packet.cur_ + 4));
    data_len_ = *((uint16_t*) (packet.cur_ + 8));
    
-   data_ = (char*) malloc((size_t) data_len_);
+   data_ = (char*) malloc((size_t) ntohs(data_len_));
    if (!data_) {
       std::cerr << "Malloc failed." << std::endl;
       exit(EXIT_FAILURE);
    }
-   memcpy(data_, packet.cur_ + 10, (size_t) data_len_);
+   memcpy(data_, packet.cur_ + 10, (size_t) ntohs(data_len_));
    
    packet.cur_ += 10 + data_len_; 
+}
+
+DnsResourceRecord::DnsResourceRecord(std::string name, uint16_t type, 
+      uint16_t clz, uint32_t ttl, uint16_t data_len, char* data) 
+      : name_(name), type_(type), clz_(clz), ttl_(ttl), data_len_(data_len) {
+   data_ = (char*) malloc((size_t) ntohs(data_len_));
+   if (!data_) {
+      std::cerr << "Malloc failed." << std::endl;
+      exit(EXIT_FAILURE);
+   }
+   memcpy(data_, data, (size_t) ntohs(data_len_));
+}
+
+DnsResourceRecord::DnsResourceRecord(const DnsResourceRecord& rr)
+      : name_(rr.name_), type_(rr.type_), clz_(rr.clz_), ttl_(rr.ttl_),
+      data_len_(rr.data_len_) {
+   data_ = (char*) malloc((size_t) ntohs(data_len_));
+   if (!data_) {
+      std::cerr << "Malloc failed." << std::endl;
+      exit(EXIT_FAILURE);
+   }
+   memcpy(data_, rr.data_, (size_t) ntohs(data_len_));
 }
 
 DnsResourceRecord::~DnsResourceRecord() {
@@ -31,11 +53,11 @@ DnsResourceRecord::~DnsResourceRecord() {
 
 void DnsResourceRecord::Print() {
    std::cout << "Resource Record:" << std::endl;
-   std::cout << "   Name: %s" << name_ << std::endl;
-   std::cout << "   Type: %d" << ntohs(type_) << std::endl;
-   std::cout << "   Class: %d" << ntohs(clz_) << std::endl;
-   std::cout << "   TTL: %d" << ntohl(ttl_) << std::endl;
-   std::cout << "   Data length: %d" << ntohs(data_len_) << std::endl;
+   std::cout << "   Name: " << name_ << std::endl;
+   std::cout << "   Type: " << ntohs(type_) << std::endl;
+   std::cout << "   Class: " << ntohs(clz_) << std::endl;
+   std::cout << "   TTL: " << ntohl(ttl_) << std::endl;
+   std::cout << "   Data length: " << ntohs(data_len_) << std::endl;
    std::cout << "   Data:  ";
    PrintData(10);
 }

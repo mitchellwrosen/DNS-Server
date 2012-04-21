@@ -9,13 +9,13 @@
 DnsQuery::DnsQuery(DnsPacket& packet) {
    name_ = packet.GetName();
 
-   type_ = ntohs(*((uint16_t*) packet.cur_));
-   clz_ = ntohs(*((uint16_t*) (packet.cur_ + 2)));
+   type_ = *((uint16_t*) packet.cur_);
+   clz_ = *((uint16_t*) (packet.cur_ + 2));
 
    packet.cur_ += 4;
 }
 
-DnsQuery::DnsQuery(std::string& name, int type, int clz)
+DnsQuery::DnsQuery(std::string name, int type, int clz)
    : name_(name), type_(type), clz_(clz) { }
 
 bool DnsQuery::operator<(const DnsQuery& query) const {
@@ -34,6 +34,6 @@ bool DnsQuery::operator<(const DnsQuery& query) const {
 void DnsQuery::Print() {
    std::cout << "Query:" << std::endl;
    std::cout << "   Name: " << name_ << std::endl;
-   std::cout << "   Type: " << (int) type_ << std::endl;
-   std::cout << "   Class: " << (int) clz_ << std::endl;
+   std::cout << "   Type: " << ntohs(type_) << std::endl;
+   std::cout << "   Class: " << ntohs(clz_) << std::endl;
 }

@@ -10,6 +10,9 @@ class DnsPacket;
 class DnsResourceRecord {
   public:
    DnsResourceRecord(DnsPacket& packet);
+   DnsResourceRecord(std::string name_, uint16_t type, uint16_t clz, 
+         uint32_t ttl, uint16_t data_len_, char* data);
+   DnsResourceRecord(const DnsResourceRecord& rr);
    virtual ~DnsResourceRecord();
 
    void Print();

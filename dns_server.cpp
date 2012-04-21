@@ -72,7 +72,7 @@ void DnsServer::Run() {
          query.Print();
 
          // Respond to query
-         //Respond(query, packet.rd_flag());
+         Respond(query, packet.rd_flag());
       }
    } 
 }

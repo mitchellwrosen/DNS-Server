@@ -10,9 +10,12 @@
 #include <unistd.h>
 
 #include <map>
+#include <utility>
 #include <vector>
 
 #include "smartalloc.h"
+
+#include "debug.h"
 
 #include "dns_cache.h"
 #include "dns_packet.h"
@@ -22,7 +25,56 @@
 namespace constants = dns_packet_constants;
 
 DnsCache::DnsCache() {
-   // inialize with root servers
+   char a[] = "a.root-servers.net.";
+   char b[] = "b.root-servers.net.";
+   char c[] = "c.root-servers.net.";
+   char d[] = "d.root-servers.net.";
+   char e[] = "e.root-servers.net.";
+   char f[] = "f.root-servers.net.";
+   char g[] = "g.root-servers.net.";
+   char h[] = "h.root-servers.net.";
+   char i[] = "i.root-servers.net.";
+   char j[] = "j.root-servers.net.";
+   char k[] = "k.root-servers.net.";
+   char l[] = "l.root-servers.net.";
+   char m[] = "m.root-servers.net.";
+
+   // Initialize with root servers -- match with queries for "" 
+   DnsQuery query = DnsQuery("", 
+                             htons(constants::type::NS), 
+                             htons(constants::clz::IN));
+
+   std::vector<DnsResourceRecord> root_servers;
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(a)+1), a)); //TODO +1? or no?
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(b)+1), b)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(c)+1), c)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(d)+1), d)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(e)+1), e)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(f)+1), f)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(g)+1), g)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(h)+1), h)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(i)+1), i)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(j)+1), j)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(k)+1), k)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(l)+1), l)); 
+   root_servers.push_back(DnsResourceRecord(".", htons(constants::type::NS), 
+         htons(constants::clz::IN), 0, htons(strlen(m)+1), m)); 
+
+   // TODO root servers' IPs
+   
+   Insert(query, root_servers);
 }
 
 bool DnsCache::Get(std::string name,
@@ -103,6 +155,8 @@ bool DnsCache::GetIterative(std::string name,
 
 bool DnsCache::GetIterative(DnsQuery& query, 
                             std::vector<DnsResourceRecord>* rrs) {
+   LOG << "Looking for exact match (" << query.name() << ", " << 
+         ntohs(query.type()) << ", " << ntohs(query.clz()) << ") ";
    Cache::iterator it = cache_.find(query);
    if (it != cache_.end()) {
       time_t now = time(NULL);
@@ -110,17 +164,22 @@ bool DnsCache::GetIterative(DnsQuery& query,
       std::vector<TimestampedDnsResourceRecord>::iterator it2;
       for (it2 = it->second.begin(); it2 != it->second.end(); ++it2)
          // Check every returned RR is not expired (ignore TTL == 0)
-         if (it2->first && now - it2->first > it2->second.ttl())  
+         if (ntohl(it2->second.ttl()) && 
+             now - it2->first > ntohl(it2->second.ttl())) { 
+            LOG << "-- NOT FOUND" << std::endl;
             return false;
+         }
 
       // Push all RRs to the supplied vector
       for (it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
          rrs->push_back(it2->second);
+         LOG << "-- FOUND" << std::endl;
          return true;
       }
    }
 
    // No hits
+   LOG << "-- NOT FOUND" << std::endl;
    return false;
 }
 
@@ -142,4 +201,19 @@ void DnsCache::GetRecursive(DnsQuery& query,
                 query.type(),
                 query.clz(),
                 rrs);
+}
+
+void DnsCache::Insert(DnsQuery query,
+                      std::vector<DnsResourceRecord> resource_records) {
+   time_t now = time(NULL);
+   std::vector<TimestampedDnsResourceRecord> timestamped_resource_records;
+   
+   std::vector<DnsResourceRecord>::iterator it;
+   for (it = resource_records.begin(); it != resource_records.end(); ++it) {
+      timestamped_resource_records.push_back(
+            std::pair<time_t, DnsResourceRecord>(now, *it));
+   }
+
+   cache_.insert(std::pair<DnsQuery, std::vector<TimestampedDnsResourceRecord> >
+         (query, timestamped_resource_records));
 }
