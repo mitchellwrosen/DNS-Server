@@ -19,23 +19,23 @@
 #include "dns_query.h"
 #include "dns_resource_record.h"
 
-namespace dns_packet_constants = constants;
+namespace constants = dns_packet_constants;
 
 DnsCache::DnsCache() {
    // inialize with root servers
 }
 
-void DnsCache::Get(std::string& name,
-                   int type,
-                   int clz,
+bool DnsCache::Get(std::string name,
+                   uint16_t type,
+                   uint16_t clz,
                    std::vector<DnsResourceRecord>* answer_rrs,
                    std::vector<DnsResourceRecord>* authority_rrs,
                    std::vector<DnsResourceRecord>* additional_rrs) {
    DnsQuery query(name, type, clz);
-   Get(query, answer_rrs, authority_rrs, additional_rrs);
+   return Get(query, answer_rrs, authority_rrs, additional_rrs);
 }
 
-void DnsCache::Get(DnsQuery& query,
+bool DnsCache::Get(DnsQuery& query,
                    std::vector<DnsResourceRecord>* answer_rrs,
                    std::vector<DnsResourceRecord>* authority_rrs,
                    std::vector<DnsResourceRecord>* additional_rrs) {
@@ -43,50 +43,59 @@ void DnsCache::Get(DnsQuery& query,
    if (GetIterative(query, answer_rrs))
       return true;
 
-   // Look for CNAME match
-   switch (query.type()) {
-      case constants::type::NS:
-      case constants::type::MX:
-      case constants::type::CNAME:
-      // ... others ...
-         break;
-      default:
-         if (GetIterative(query.name(), 
-                          constants::type::CNAME, 
-                          query.clz(), 
-                          answer_rrs)) {
-            // We hit one or more CNAMEs - try to fill our answer with the 
-            // query type, and authority with NSs
-            std::vector<DnsResourceRecord>::iterator it;
-            for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
-               GetIterative(it->data(), query.type(), query.clz(), answer_rrs);
-               GetRecursive(it->data(), 
-                            constants::type::NS, 
-                            query.clz(),
-                            authority_rrs);
-            }
+   // Look for CNAME match, only if it's not one of a few specific RRs
+   uint16_t type = ntohs(query.type());
+   if (type != constants::type::NS &&
+       type != constants::type::MX &&
+       type != constants::type::CNAME) { // TODO there are more! 
+      if (GetIterative(query.name(), 
+                       ntohs(constants::type::CNAME), 
+                       query.clz(), 
+                       answer_rrs)) {
+         bool found = false;
 
-            // Try to fill out additional with A records of NS
-            for (it = authority_rrs->begin(); it != authority_rrs->end(); ++i)
-               GetIterative(it->data(), 
-                            constants::type::A, 
-                            query.clz(), 
-                            additional_rrs); 
-
-            // No matter what, we hit one or more CNAMEs, so return true (the
-            // server may then have to make an additional query to resolve the
-            // query type, if only CNAMEs were found)
-            return true;
+         // We hit one or more CNAMEs - try to fill our answer with the 
+         // query type, and authority with NSs
+         std::vector<DnsResourceRecord>::iterator it;
+         for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
+            // If we find an A record for this CNAME, consider it a cache
+            // hit. Otherwise, if we're just going to return a CNAME,
+            // consider it a cache miss 
+            if (GetIterative(it->data(), 
+                             query.type(), 
+                             query.clz(), 
+                             answer_rrs))
+               found = true;
+            GetRecursive(it->data(), 
+                         ntohs(constants::type::NS), 
+                         query.clz(),
+                         authority_rrs);
          }
+
+         // Try to fill out additional with A records of NS
+         for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it)
+            GetIterative(it->data(), 
+                         ntohs(constants::type::A), 
+                         query.clz(), 
+                         additional_rrs); 
+
+         // If we hit any A records for any CNAMEs, cache hit. Otherwise,
+         // cache miss.
+         return found;
+      }
    }
 
    // No record or CNAME found - recurse up looking for name servers
-   GetRecursive(query.name(), constants::type::NS, query.clz(), authority_rrs);
+   GetRecursive(query.name(), 
+                ntohs(constants::type::NS), 
+                query.clz(), 
+                authority_rrs);
+   return false;
 }
 
-bool DnsCache::GetIterative(std::string& name,
-                            int type,
-                            int clz,
+bool DnsCache::GetIterative(std::string name,
+                            uint16_t type,
+                            uint16_t clz,
                             std::vector<DnsResourceRecord>* rrs) {
    DnsQuery query(name, type, clz);
    return GetIterative(query, rrs);
@@ -115,9 +124,9 @@ bool DnsCache::GetIterative(DnsQuery& query,
    return false;
 }
 
-void DnsCache::GetRecursive(std::string& name,
-                            int type,
-                            int clz,
+void DnsCache::GetRecursive(std::string name,
+                            uint16_t type,
+                            uint16_t clz,
                             std::vector<DnsResourceRecord>* rrs) {
    DnsQuery query(name, type, clz);
    GetRecursive(query, rrs);
@@ -127,9 +136,10 @@ void DnsCache::GetRecursive(std::string& name,
 void DnsCache::GetRecursive(DnsQuery& query, 
                             std::vector<DnsResourceRecord>* rrs) {
    if (GetIterative(query, rrs))
-      return true;
+      return;
 
    GetRecursive(DnsPacket::ShortenName(query.name()), 
                 query.type(),
-                query.clz());
+                query.clz(),
+                rrs);
 }

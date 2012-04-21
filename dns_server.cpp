@@ -19,10 +19,10 @@
 
 #include "dns_server.h"
 #include "dns_packet.h"
+#include "dns_query.h"
+#include "dns_resource_record.h"
 
-const bool logging = true;
-
-namespace dns_packet_constants = constants;
+namespace constants = dns_packet_constants;
 
 DnsServer::DnsServer()
       : port_("53") {
@@ -46,58 +46,58 @@ void DnsServer::Run() {
    socklen_t client_addr_len = sizeof(struct sockaddr_storage);
 
    // Main event loop
-   if (Server::HasDataToRead(sock_)) {
-      std::cout << "Data to read" << std::endl;
+   while (1) {
+      if (Server::HasDataToRead(sock_)) {
+         LOG0("Has data to read");
 
-      int rlen;
-      SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
-            (struct sockaddr*) &client_addr, &client_addr_len)), "recvfrom");
+         int rlen;
+         SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
+               (struct sockaddr*) &client_addr, &client_addr_len)), "recvfrom");
 
-      DnsPacket packet(buf_);
-      packet.Print();
+         DnsPacket packet(buf_);
+         LOG1("Printing packet received (%d bytes):", rlen);
+         packet.PrintHeader();
 
-      // Check QR bit
-      LOG1("qr_flag: %d", packet.qr_flag());
-      if (packet.qr_flag()) {
-         // Response
+         // Check QR bit
+         LOG1("qr_flag: %d", packet.qr_flag());
+         if (packet.qr_flag()) {
+            // Response
+         }
+         else {
+            // New query
+            DnsQuery query = packet.GetQuery();
+            LOG0("Printing packet's query:");
+            query.Print();
+
+            // Respond to query
+            //Respond(query, packet.rd_flag());
+         }
+      } else {
+         LOG0("No data to read");
       }
-      else {
-         // New query
-         DnsQuery query = packet.GetQuery();
-         query.Print();
-
-         // Respond to query
-         Respond(query);
-      }
-   } else {
-      std::cout << "No data to read" << std::endl;
    }
 }
 
-void Respond(DnsQuery query) {
-   switch (query.type()) {
-      if (cache_.get(query)) {
+void DnsServer::Respond(DnsQuery query, bool recursive) {
+   std::vector<DnsResourceRecord> answer_rrs;
+   std::vector<DnsResourceRecord> authority_rrs;
+   std::vector<DnsResourceRecord> additional_rrs;
+
+   if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs)) {
          //send_response
-      }
+   }
       
-      // not in cache
-      else {
-         // if recursive, query authority name server
-         if (query.rd_()) {
+   // not in cache
+   else {
+      // if recursive, query authority name server
+      if (recursive) {
          
-         }
-
-         // if iterative, respond with all we know
-         else {
-            do {
-               cache_.get(DnsPacket::ShortenName(query.name()),
-                          constants::type::NS,
-                          query.clz());
-            } while (/*cache_.get() == NULL*/);
-         }
-         
+       
       }
 
-      break;
+      // if iterative, respond with all we know
+      else {
+
+      }
    }
 }

@@ -5,6 +5,8 @@
 
 #include <string>
 
+class DnsPacket;
+
 class DnsResourceRecord {
   public:
    DnsResourceRecord(DnsPacket& packet);

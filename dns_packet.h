@@ -6,7 +6,8 @@
 #include <vector>
 
 #include "dns_query.h"
-#include "dns_resource_record.h"
+
+class DnsResourceRecord;
 
 namespace dns_packet_constants {
 namespace qr_flag {
@@ -70,7 +71,6 @@ class DnsPacket {
   public:
    DnsPacket(char* data);
 
-
    struct Flags {
       uint16_t qr:1;
       uint16_t opcode:4;
@@ -82,6 +82,10 @@ class DnsPacket {
       uint16_t rcode:4;
    } __attribute__((packed));
 
+   // Construct a DnsQuery at buf, return the number of bytes written
+   static int ConstructQuery(char* buf, uint16_t id, uint8_t opcode, 
+         bool rd_flag, char* name, uint16_t type, uint16_t clz);
+   
    // Static methods for creating DNS Packets. Each returns a pointer to the
    // next character in the buffer
    // Requires fields to be in network order
@@ -93,13 +97,16 @@ class DnsPacket {
    static uint16_t ConstructFlags(bool qr_flag, uint8_t opcode, bool aa_flag,
          bool tc_flag, bool rd_flag, bool ra_flag, uint8_t rcode);
 
+   // If GetQuery isn't called before GetResourceRecord, bad things will happen
+   DnsQuery GetQuery();
    DnsResourceRecord GetResourceRecord();
 
-   // Gets the name pointed to by *p, advances *p to the next field (type)
-   std::string GetName(char* packet, char** strpp);
+   // Gets the name pointed to by cur_, advances cur_ to the next field (type)
+   std::string GetName();
 
-   void Print();
    void PrintHeader();
+
+   static std::string ShortenName(std::string name);
 
    // Flags field
    bool qr_flag() { return flags() & 0x8000; }
@@ -112,24 +119,26 @@ class DnsPacket {
 
    // Getters
    char* data() { return data_; }
+   char* cur() { return cur_; } // necessary?
    uint16_t id() { return id_; }
    uint16_t flags() { return flags_; }
    uint16_t queries() { return queries_; }
    uint16_t answer_rrs() { return answer_rrs_; }
    uint16_t authority_rrs() { return authority_rrs_; }
    uint16_t additional_rrs() { return additional_rrs_; }
-   DnsQuery GetQuery() { return query_; }
+
+   friend class DnsQuery;
+   friend class DnsResourceRecord;
 
   private:
    char* data_;
-   uint16_t id_;
-   uint16_t flags_;
-   uint16_t queries_;
-   uint16_t answer_rrs_;
-   uint16_t authority_rrs_;
-   uint16_t additional_rrs_;
-
-   DnsQuery query_; // only 1
+   char* cur_;
+   uint16_t id_;              // network order
+   uint16_t flags_;           // host order
+   uint16_t queries_;         // host order
+   uint16_t answer_rrs_;      // host order
+   uint16_t authority_rrs_;   // host order
+   uint16_t additional_rrs_;  // host order
 };
 
 #endif   // _DNS_PACKET_H_

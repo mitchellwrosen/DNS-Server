@@ -20,6 +20,12 @@
 }
 
 #define LOGGING true
+
+#define LOG0(str); {\
+   if (LOGGING)\
+      std::cout << str << std::endl;\
+}
+
 #define LOG1(str, arg1); {\
    if (LOGGING)\
       std::cout << str << arg1 << std::endl;\

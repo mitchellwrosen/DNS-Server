@@ -18,6 +18,19 @@ DnsQuery::DnsQuery(DnsPacket& packet) {
 DnsQuery::DnsQuery(std::string& name, int type, int clz)
    : name_(name), type_(type), clz_(clz) { }
 
+bool DnsQuery::operator<(const DnsQuery& query) const {
+   // First compare names
+   if (name_ != query.name_)
+      return name_ < query.name_;
+
+   // Then types
+   if (type_ != query.type_) 
+      return type_ < query.type_;
+   
+   // Then classes
+   return clz_ < query.clz_;
+}
+
 void DnsQuery::Print() {
    std::cout << "Query:" << std::endl;
    std::cout << "   Name: %s" << name_ << std::endl;

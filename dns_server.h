@@ -19,6 +19,7 @@
 #include "checksum.h"
 #include "smartalloc.h"
 
+#include "dns_query.h"
 #include "dns_cache.h"
 #include "udp_server.h"
 
@@ -28,18 +29,12 @@ class DnsServer : public UdpServer {
    virtual ~DnsServer();
 
    void Run();
-
-   // Stack of DnsQueries
-   typedef std::stack<DnsQuery> DnsQueryStack;
-
-   // Map of int -> DnsQueryStack, where int  
-   typedef std::map<int, QueryStack> DnsQueryStackMap;
+   void Respond(DnsQuery query, bool recursive);
 
   protected:
 
   private:
    DnsCache cache_;
-   DnsQueryStackMap query_stack_map_;
 
    const std::string port_;
    char buf_[ETH_DATA_LEN];

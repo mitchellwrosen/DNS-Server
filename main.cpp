@@ -16,8 +16,8 @@
 #include "debug.h"
 #include "smartalloc.h"
 
-#include "dns_server.h"
 #include "dns_packet.h"
+#include "dns_server.h"
 
 DnsServer* server;
 

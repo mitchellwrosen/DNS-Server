@@ -1,5 +1,7 @@
 #include <arpa/inet.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <iostream>
 
@@ -8,19 +10,19 @@
 
 DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
    name_ = packet.GetName();
-   type_ = ntohs(*((uint16_t*) packet.cur_));
-   clz_ = ntohs(*((uint16_t*) (packet.cur_ + 2)));
-   ttl_ = ntohl(*((uint32_t*) (packet.cur_ + 4)));
-   data_len_ = ntohs(*((uint16_t*) (packet.cur_ + 8)));
+   type_ = *((uint16_t*) packet.cur_);
+   clz_ = *((uint16_t*) (packet.cur_ + 2));
+   ttl_ = *((uint32_t*) (packet.cur_ + 4));
+   data_len_ = *((uint16_t*) (packet.cur_ + 8));
    
-   data_ = (char*) malloc(data_len);
+   data_ = (char*) malloc((size_t) data_len_);
    if (!data_) {
-      fprintf("Malloc failed.\n");
+      std::cerr << "Malloc failed." << std::endl;
       exit(EXIT_FAILURE);
    }
-   data_ = memcpy(data_, packet.cur_ + 10, data_len);
+   memcpy(data_, packet.cur_ + 10, (size_t) data_len_);
    
-   packet.cur_ += 10 + data_len; 
+   packet.cur_ += 10 + data_len_; 
 }
 
 DnsResourceRecord::~DnsResourceRecord() {
@@ -30,10 +32,10 @@ DnsResourceRecord::~DnsResourceRecord() {
 void DnsResourceRecord::Print() {
    std::cout << "Resource Record:" << std::endl;
    std::cout << "   Name: %s" << name_ << std::endl;
-   std::cout << "   Type: %d" << type_ << std::endl;
-   std::cout << "   Class: %d" << clz_ << std::endl;
-   std::cout << "   TTL: %d" << ttl_ << std::endl;
-   std::cout << "   Data length: %d" << data_len_ << std::endl;
+   std::cout << "   Type: %d" << ntohs(type_) << std::endl;
+   std::cout << "   Class: %d" << ntohs(clz_) << std::endl;
+   std::cout << "   TTL: %d" << ntohl(ttl_) << std::endl;
+   std::cout << "   Data length: %d" << ntohs(data_len_) << std::endl;
    std::cout << "   Data:  ";
    PrintData(10);
 }

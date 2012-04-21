@@ -73,19 +73,17 @@ const int kAdditionalRrsOffset = 10;
 const int kFirstQueryOffset = 12;
 }
 
-using namespace dns_packet_constants;
+namespace constants = dns_packet_constants;
 
 DnsPacket::DnsPacket(char* data)
       : data_(data),
-        cur_(data + kFirstQueryOffset);
-        id_(ntohs(data[kIdOffset])),
-        flags_(data[kFlagsOffset]),
-        queries_(ntohs(data[kQueriesOffset])),
-        answer_rrs_(ntohs(data[kAnswerRrsOffset])),
-        authority_rrs_(ntohs(data[kAuthorityRrsOffset])),
-        additional_rrs_(ntohs(data[kAdditionalRrsOffset])) {
-   query_(*this);
-}
+        cur_(data + kFirstQueryOffset),
+        id_(*((uint16_t*) (data + kIdOffset))),
+        flags_(ntohs(*((uint16_t*) (data + kFlagsOffset)))),
+        queries_(ntohs(*((uint16_t*) (data + kQueriesOffset)))),
+        answer_rrs_(ntohs(*((uint16_t*) (data + kAnswerRrsOffset)))),
+        authority_rrs_(ntohs(*((uint16_t*) (data + kAuthorityRrsOffset)))),
+        additional_rrs_(ntohs(*((uint16_t*) (data + kAdditionalRrsOffset)))) { }
 
 std::string DnsPacket::GetName() {
    bool ptr_found = false;
@@ -98,7 +96,7 @@ std::string DnsPacket::GetName() {
             ptr_found = true;
             cur_ = p + 2;
          }
-         p = packet + ntohs(*((uint16_t*) p) & 0x3FFF);
+         p = data_ + ntohs(*((uint16_t*) p) & 0x3FFF);
       }
 
       // p is now pointing at a number. append that many chars to name, plus
@@ -117,6 +115,17 @@ std::string DnsPacket::GetName() {
 }
 
 // static
+int DnsPacket::ConstructQuery(char* buf, uint16_t id, uint8_t opcode, 
+         bool rd_flag, char* name, uint16_t type, uint16_t clz) {
+   char *p = ConstructHeader(buf, htons(id), constants::qr_flag::Query, opcode,
+         false, false, rd_flag, false, 0, 1, 0, 0, 0);
+   int name_len = strlen(name);
+   memcpy(p, name, name_len + 1); 
+   memcpy(p + name_len + 1, &type, sizeof(uint16_t));
+   memcpy(p + name_len + 3, &clz, sizeof(uint16_t));
+   return p + name_len + 5 - buf; 
+}
+
 char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
       uint8_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
       uint8_t rcode, uint16_t queries, uint16_t answer_rrs,
@@ -153,31 +162,20 @@ uint16_t DnsPacket::ConstructFlags(bool qr_flag, uint8_t opcode,
    return htons(*reinterpret_cast<uint16_t*>(&flags));
 }
 
+DnsQuery DnsPacket::GetQuery() {
+   DnsQuery query(*this);
+   return query;
+}
+
 DnsResourceRecord DnsPacket::GetResourceRecord() {
    DnsResourceRecord rr(*this);
    return rr;
 }
 
-void DnsPacket::Print() {
-   if (queries_ != 1) {
-      std::cout << "Error in DnsPacket::Print(): Packet has %d queries."
-            << queries_ << std::endl;
-      return;
-   }
-
-   int i;
-
-   PrintHeader();
-   query_.Print();
-
-   for (i = 0; i < answer_rrs_; ++i)
-      GetAnswerResourceRecord(i).Print();
-
-   for (i = 0; i < authority_rrs_; ++i)
-      GetAuthorityResourceRecord(i).Print();
-
-   for (i = 0; i < additional_rrs_; ++i)
-      GetAdditionalResourceRecord(i).Print();
+// static
+std::string DnsPacket::ShortenName(std::string name) {
+   uint8_t len = name.at(0);
+   return name.substr(len+1);
 }
 
 void DnsPacket::PrintHeader() {
@@ -185,26 +183,26 @@ void DnsPacket::PrintHeader() {
    std::cout << "==========" << std::endl;
    std::cout << "Id: %d" << id() << std::endl;
 
-   if (qr_flag() == kQrFlagQuery)
+   if (qr_flag() == constants::qr_flag::Response)
       std::cout << "Query/Response: 1 (Response)" << std::endl;
    else
       std::cout << "Query/Response: 0 (Query)" << std::endl;
 
    std::string opcode_str;
    switch (opcode()) {
-      case kOpcodeQuery:
+      case constants::opcode::Query:
          opcode_str = "Query";
          break;
-      case kOpcodeInverseQuery:
+      case constants::opcode::InverseQuery:
          opcode_str = "Inverse Query";
          break;
-      case kOpcodeStatus:
+      case constants::opcode::Status:
          opcode_str = "Status";
          break;
-      case kOpcodeNotify:
+      case constants::opcode::Notify:
          opcode_str = "Notify";
          break;
-      case kOpcodeUpdate:
+      case constants::opcode::Update:
          opcode_str = "Update";
          break;
       default:
@@ -220,34 +218,34 @@ void DnsPacket::PrintHeader() {
 
    std::string rcode_str;
    switch(rcode()) {
-      case kResponseCodeNoError:
+      case constants::response_code::NoError:
          rcode_str = "No Error";
          break;
-      case kResponseCodeFormatError:
+      case constants::response_code::FormatError:
          rcode_str = "Format Error";
          break;
-      case kResponseCodeServerFailure:
+      case constants::response_code::ServerFailure:
          rcode_str = "Server Failure";
          break;
-      case kResponseCodeNameError:
+      case constants::response_code::NameError:
          rcode_str = "Name Error";
          break;
-      case kResponseCodeRefused:
+      case constants::response_code::Refused:
          rcode_str = "Refused";
          break;
-      case kResponseCodeYxDomain:
+      case constants::response_code::YxDomain:
          rcode_str = "YX Domain";
          break;
-      case kResponseCodeYxRrSet:
+      case constants::response_code::YxRrSet:
          rcode_str = "YX RR Set";
          break;
-      case kResponseCodeNxRrSet:
+      case constants::response_code::NxRrSet:
          rcode_str = "NX RR Set";
          break;
-      case kResponseCodeNotAuth:
+      case constants::response_code::NotAuth:
          rcode_str = "Not Auth";
          break;
-      case kResponseCodeNotZone:
+      case constants::response_code::NotZone:
          rcode_str = "Not Zone";
          break;
    }
