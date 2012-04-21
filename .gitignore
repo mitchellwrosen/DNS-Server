@@ -1,2 +1,6 @@
+# Executables
 dns_server-*
+DnsPacketSender
+
+# Temp files
 *.swp

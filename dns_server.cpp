@@ -25,17 +25,20 @@
 namespace constants = dns_packet_constants;
 
 DnsServer::DnsServer()
-      : port_("53") {
+      : port_("5003") {
    // set up server hints struct
    struct addrinfo hints;
 
+   LOG << "Setting up hints struct" << std::endl;
    memset(&hints, 0, sizeof(struct addrinfo));
    hints.ai_family = AF_UNSPEC;
    hints.ai_socktype = SOCK_DGRAM;
    hints.ai_flags = AI_PASSIVE;
 
    // init server
+   LOG << "Initializing server" << std::endl;
    Server::Init(port_, &hints);
+   LOG << "Server initialized" << std::endl;
 }
 
 DnsServer::~DnsServer() {
@@ -46,36 +49,32 @@ void DnsServer::Run() {
    socklen_t client_addr_len = sizeof(struct sockaddr_storage);
 
    // Main event loop
-   while (1) {
-      if (Server::HasDataToRead(sock_)) {
-         LOG0("Has data to read");
+   while (Server::HasDataToRead(sock_)) {
+      LOG << "Has data to read" << std::endl;
 
-         int rlen;
-         SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
-               (struct sockaddr*) &client_addr, &client_addr_len)), "recvfrom");
+      int rlen;
+      SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
+            (struct sockaddr*) &client_addr, &client_addr_len)), "recvfrom");
 
-         DnsPacket packet(buf_);
-         LOG1("Printing packet received (%d bytes):", rlen);
-         packet.PrintHeader();
+      DnsPacket packet(buf_);
+      LOG << "Printing packet received (" << rlen << ") bytes)" << std::endl;
+      packet.PrintHeader();
 
-         // Check QR bit
-         LOG1("qr_flag: %d", packet.qr_flag());
-         if (packet.qr_flag()) {
-            // Response
-         }
-         else {
-            // New query
-            DnsQuery query = packet.GetQuery();
-            LOG0("Printing packet's query:");
-            query.Print();
-
-            // Respond to query
-            //Respond(query, packet.rd_flag());
-         }
-      } else {
-         LOG0("No data to read");
+      // Check QR bit
+      LOG << "qr_flag: " << packet.qr_flag() << std::endl;
+      if (packet.qr_flag()) {
+         // Response
       }
-   }
+      else {
+         // New query
+         DnsQuery query = packet.GetQuery();
+         LOG << "Printing packet's query:" << std::endl;
+         query.Print();
+
+         // Respond to query
+         //Respond(query, packet.rd_flag());
+      }
+   } 
 }
 
 void DnsServer::Respond(DnsQuery query, bool recursive) {

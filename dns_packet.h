@@ -71,31 +71,17 @@ class DnsPacket {
   public:
    DnsPacket(char* data);
 
-   struct Flags {
-      uint16_t qr:1;
-      uint16_t opcode:4;
-      uint16_t aa:1;
-      uint16_t tc:1;
-      uint16_t rd:1;
-      uint16_t ra:1;
-      uint16_t zeros:3;
-      uint16_t rcode:4;
-   } __attribute__((packed));
-
    // Construct a DnsQuery at buf, return the number of bytes written
-   static int ConstructQuery(char* buf, uint16_t id, uint8_t opcode, 
-         bool rd_flag, char* name, uint16_t type, uint16_t clz);
+   static int ConstructQuery(char* buf, uint16_t id, uint16_t opcode, 
+         bool rd_flag, const char* name, uint16_t type, uint16_t clz);
    
    // Static methods for creating DNS Packets. Each returns a pointer to the
    // next character in the buffer
    // Requires fields to be in network order
    static char* ConstructHeader(char* buf, uint16_t id, bool qr_flag,
-         uint8_t opcode, bool aa_flag, bool tc_flag, bool rd_flag,
-         bool ra_flag, uint8_t rcode, uint16_t queries, uint16_t answer_rrs,
+         uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag,
+         bool ra_flag, uint16_t rcode, uint16_t queries, uint16_t answer_rrs,
          uint16_t authority_rrs, uint16_t additional_rrs);
-
-   static uint16_t ConstructFlags(bool qr_flag, uint8_t opcode, bool aa_flag,
-         bool tc_flag, bool rd_flag, bool ra_flag, uint8_t rcode);
 
    // If GetQuery isn't called before GetResourceRecord, bad things will happen
    DnsQuery GetQuery();

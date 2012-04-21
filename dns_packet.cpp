@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+#include "debug.h"
+
 #include "dns_packet.h"
 #include "dns_query.h"
 #include "dns_resource_record.h"
@@ -115,10 +117,10 @@ std::string DnsPacket::GetName() {
 }
 
 // static
-int DnsPacket::ConstructQuery(char* buf, uint16_t id, uint8_t opcode, 
-         bool rd_flag, char* name, uint16_t type, uint16_t clz) {
-   char *p = ConstructHeader(buf, htons(id), constants::qr_flag::Query, opcode,
-         false, false, rd_flag, false, 0, 1, 0, 0, 0);
+int DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode, 
+         bool rd_flag, const char* name, uint16_t type, uint16_t clz) {
+   char *p = ConstructHeader(buf, id, constants::qr_flag::Query, opcode,
+         false, false, rd_flag, false, 0, ntohs(1), 0, 0, 0);
    int name_len = strlen(name);
    memcpy(p, name, name_len + 1); 
    memcpy(p + name_len + 1, &type, sizeof(uint16_t));
@@ -127,13 +129,26 @@ int DnsPacket::ConstructQuery(char* buf, uint16_t id, uint8_t opcode,
 }
 
 char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
-      uint8_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
-      uint8_t rcode, uint16_t queries, uint16_t answer_rrs,
+      uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
+      uint16_t rcode, uint16_t queries, uint16_t answer_rrs,
       uint16_t authority_rrs, uint16_t additional_rrs) {
    memcpy(buf, &id, sizeof(uint16_t));
 
-   uint16_t flags = ConstructFlags(qr_flag, opcode, aa_flag, tc_flag,
-      rd_flag, ra_flag, rcode);
+   //uint16_t flags = ConstructFlags(qr_flag, opcode, aa_flag, tc_flag, rd_flag, 
+   //      ra_flag, rcode);
+   uint16_t flags = rcode; // last bits match up
+   if (qr_flag) flags |= 0x8000;
+   flags &= (opcode << 11);
+   if (aa_flag) flags |= 0x0400;
+   if (tc_flag) flags |= 0x0200;
+   if (rd_flag) flags |= 0x0100;
+   if (ra_flag) flags |= 0x0080;
+
+   LOG << "Flags : " << (int) flags << std::endl;
+
+   flags = htons(flags);
+
+   
    memcpy(buf + 2, &flags, sizeof(uint16_t));
 
    memcpy(buf + 4, &queries, sizeof(uint16_t));
@@ -142,24 +157,6 @@ char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
    memcpy(buf + 10, &additional_rrs, sizeof(uint16_t));
 
    return buf + 12;
-}
-
-// static
-uint16_t DnsPacket::ConstructFlags(bool qr_flag, uint8_t opcode,
-      bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag, uint8_t rcode) {
-   Flags flags;
-   memset(&flags, 0, sizeof(Flags));
-
-   flags.qr = qr_flag;
-   flags.opcode = opcode;
-   flags.aa = aa_flag;
-   flags.tc = tc_flag;
-   flags.rd = rd_flag;
-   flags.ra = ra_flag;
-   flags.rcode = rcode;
-
-   // Holy shit O.O
-   return htons(*reinterpret_cast<uint16_t*>(&flags));
 }
 
 DnsQuery DnsPacket::GetQuery() {
@@ -181,7 +178,7 @@ std::string DnsPacket::ShortenName(std::string name) {
 void DnsPacket::PrintHeader() {
    std::cout << "DNS Packet" << std::endl;
    std::cout << "==========" << std::endl;
-   std::cout << "Id: %d" << id() << std::endl;
+   std::cout << "Id: " << id() << std::endl;
 
    if (qr_flag() == constants::qr_flag::Response)
       std::cout << "Query/Response: 1 (Response)" << std::endl;
@@ -209,12 +206,13 @@ void DnsPacket::PrintHeader() {
          opcode_str = "UNRECOGNIZED";
          break;
    }
-   std::cout << "Opcode: %d (%s)" << opcode() << opcode_str << std::endl;
+   std::cout << "Opcode: " << (int) opcode() << " (" << opcode_str << ")" << 
+         std::endl;
 
-   std::cout << "Authoritative Answer: %d" << aa_flag() << std::endl;
-   std::cout << "Truncation: %d" << tc_flag() << std::endl;
-   std::cout << "Recursion Desired: %d" << rd_flag() << std::endl;
-   std::cout << "Recursion Available: %d" << ra_flag() << std::endl;
+   std::cout << "Authoritative Answer: " << aa_flag() << std::endl;
+   std::cout << "Truncation: " << tc_flag() << std::endl;
+   std::cout << "Recursion Desired: " << rd_flag() << std::endl;
+   std::cout << "Recursion Available: " << ra_flag() << std::endl;
 
    std::string rcode_str;
    switch(rcode()) {
@@ -249,10 +247,11 @@ void DnsPacket::PrintHeader() {
          rcode_str = "Not Zone";
          break;
    }
-   std::cout << "Response Code: %d (%s)" << rcode() << rcode_str << std::endl;
+   std::cout << "Response Code: " << (int) rcode() << " (" << rcode_str << ")" 
+         << std::endl;
 
-   std::cout << "Queries: %d" << queries_ << std::endl;
-   std::cout << "Answer RRs: %d" << answer_rrs_ << std::endl;
-   std::cout << "Authority RRs: %d" << authority_rrs_ << std::endl;
-   std::cout << "Additional RRs: %d" << additional_rrs_ << std::endl;
+   std::cout << "Queries: " << (int) queries_ << std::endl;
+   std::cout << "Answer RRs: " << (int) answer_rrs_ << std::endl;
+   std::cout << "Authority RRs: " << (int) authority_rrs_ << std::endl;
+   std::cout << "Additional RRs: " << (int) additional_rrs_ << std::endl;
 }

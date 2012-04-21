@@ -21,13 +21,16 @@ else
 endif
 endif
 
-all:  dns_server-$(EXEC_SUFFIX)
+all:  dns_server-$(EXEC_SUFFIX) DnsPacketSender
 
 dns_server-$(EXEC_SUFFIX): main.cpp dns_server.cpp dns_packet.cpp dns_query.cpp dns_resource_record.cpp dns_cache.cpp udp_server.cpp server.cpp $(COMMON)
+	$(CC) $(CFLAGS) $(OSINC) $(OSLIB) $(OSDEF) -o $@ $^
+
+DnsPacketSender: DnsPacketSender.cpp dns_packet.cpp dns_query.cpp dns_resource_record.cpp $(COMMON)
 	$(CC) $(CFLAGS) $(OSINC) $(OSLIB) $(OSDEF) -o $@ $^
 
 handin: README
 	handin bellardo p1 README smartalloc.c smartalloc.h checksum.c checksum.h trace.c Makefile
 
 clean:
-	rm -rf dns_server-* dns_server-*.dSYM
+	rm -rf dns_server-* dns_server-*.dSYM DnsPacketSender

@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
    // check for root
    if (getuid() || geteuid()) {
       fprintf(stderr, "Must be root to run %s\n", argv[0]);
-      exit(EXIT_FAILURE);
+      //exit(EXIT_FAILURE);
    }
 
    // set up signal handling
@@ -35,7 +35,6 @@ int main(int argc, char** argv) {
    memset(&sigact, 0, sizeof(struct sigaction));
    sigact.sa_handler = sigint_handler;
    SYSCALL(sigaction(SIGINT, &sigact, NULL), "sigaction");
-
 
    server = new DnsServer();
    server->Run();
