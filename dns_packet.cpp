@@ -55,6 +55,7 @@ const int HINFO = 13;
 const int MINFO = 14;
 const int MX = 15;
 const int TXT = 16;
+const int AAAA = 28;
 }
 
 namespace clz {

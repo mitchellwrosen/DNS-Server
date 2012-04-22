@@ -83,6 +83,14 @@ class DnsPacket {
          bool ra_flag, uint16_t rcode, uint16_t queries, uint16_t answer_rrs,
          uint16_t authority_rrs, uint16_t additional_rrs);
 
+   friend class DnsQuery;
+   friend class DnsResourceRecord;
+   friend class RData_A;
+   //friend class RData_AAAA;
+   friend class RData_NAME;
+   friend class RData_MX;
+   friend class RData_SOA;
+
    // If GetQuery isn't called before GetResourceRecord, bad things will happen
    DnsQuery GetQuery();
    DnsResourceRecord GetResourceRecord();
@@ -112,9 +120,6 @@ class DnsPacket {
    uint16_t answer_rrs() { return answer_rrs_; }
    uint16_t authority_rrs() { return authority_rrs_; }
    uint16_t additional_rrs() { return additional_rrs_; }
-
-   friend class DnsQuery;
-   friend class DnsResourceRecord;
 
   private:
    char* data_;

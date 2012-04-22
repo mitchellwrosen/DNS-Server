@@ -1,6 +1,14 @@
 #ifndef _DEBUG_H_
 #define _DEBUG_H_
 
+// Error on NULL
+#define MALLOCCHECK(arg); {\
+   if (!arg) {\
+      std::cerr << "Malloc failed." << std::endl;\
+      exit(EXIT_FAILURE);\
+   }\
+}
+
 // For system calls that set errno and return non-zero on error
 #define SYSCALL(call, msg); {\
    if (call < 0) {\

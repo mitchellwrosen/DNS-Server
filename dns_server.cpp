@@ -64,6 +64,7 @@ void DnsServer::Run() {
       LOG << "qr_flag: " << packet.qr_flag() << std::endl;
       if (packet.qr_flag()) {
          // Response
+         // Cache all RRs
       }
       else {
          // New query
@@ -71,7 +72,7 @@ void DnsServer::Run() {
          LOG << "Printing packet's query:" << std::endl;
          query.Print();
 
-         // Respond to query
+         // Handle query
          Respond(query, packet.rd_flag());
       }
    } 
@@ -83,19 +84,20 @@ void DnsServer::Respond(DnsQuery query, bool recursive) {
    std::vector<DnsResourceRecord> additional_rrs;
 
    if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs)) {
-         //send_response
+      //send_response
    }
       
    // not in cache
    else {
       // if recursive, query authority name server
       if (recursive) {
-         
-       
+         LOG << "Cache miss, recursive";
       }
 
       // if iterative, respond with all we know
       else {
+         LOG << "Cache miss, iterative";
+
 
       }
    }
