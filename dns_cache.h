@@ -15,7 +15,7 @@
 
 #include <map>
 #include <utility>
-#include <vector>
+#include <set>
 
 #include "smartalloc.h"
 
@@ -33,14 +33,14 @@ class DnsCache {
    bool Get(std::string name,
             uint16_t type,
             uint16_t clz,
-            std::vector<DnsResourceRecord>* answer_rrs,
-            std::vector<DnsResourceRecord>* authority_rrs,
-            std::vector<DnsResourceRecord>* additional_rrs);
+            std::set<DnsResourceRecord>* answer_rrs,
+            std::set<DnsResourceRecord>* authority_rrs,
+            std::set<DnsResourceRecord>* additional_rrs);
 
    bool Get(DnsQuery& query,
-            std::vector<DnsResourceRecord>* answer_rrs,
-            std::vector<DnsResourceRecord>* authority_rrs,
-            std::vector<DnsResourceRecord>* additional_rrs);
+            std::set<DnsResourceRecord>* answer_rrs,
+            std::set<DnsResourceRecord>* authority_rrs,
+            std::set<DnsResourceRecord>* additional_rrs);
 
    // Queries the cache for an exact match. Returns true if such a match is
    // found, false otherwise. Constructs a DnsQuery with the given fields. Has
@@ -48,10 +48,10 @@ class DnsCache {
    bool GetIterative(std::string name,
                      uint16_t type,
                      uint16_t clz,
-                     std::vector<DnsResourceRecord>* rrs);
+                     std::set<DnsResourceRecord>* rrs);
 
    bool GetIterative(DnsQuery& query,
-                     std::vector<DnsResourceRecord>* rrs);
+                     std::set<DnsResourceRecord>* rrs);
 
    // Recursively queries the cache for NS records. NS record isn't hard-coded
    // into the function, but it's the only RR that makes any sense to perform
@@ -60,20 +60,21 @@ class DnsCache {
    void GetRecursive(std::string name,
                      uint16_t type,
                      uint16_t clz,
-                     std::vector<DnsResourceRecord>* rrs);
+                     std::set<DnsResourceRecord>* rrs);
 
    void GetRecursive(DnsQuery& query,
-                     std::vector<DnsResourceRecord>* rrs);
+                     std::set<DnsResourceRecord>* rrs);
 
 
    // Timestamps and insertsthe resource records into the cache with key
    // |query|.
-   void Insert(DnsQuery query,
-               std::vector<DnsResourceRecord> resource_records);
-   void Insert(DnsResourceRecord resource_record);
+   void Insert(DnsQuery& query,
+               std::set<DnsResourceRecord>* resource_records);
+   void Insert(DnsQuery& query, const DnsResourceRecord& resource_record);
+   void Insert(const DnsResourceRecord& resource_record);
 
    typedef std::pair<time_t, DnsResourceRecord> TimestampedDnsResourceRecord;
-   typedef std::map<DnsQuery, std::vector<TimestampedDnsResourceRecord> > Cache;
+   typedef std::map<DnsQuery, std::set<TimestampedDnsResourceRecord> > Cache;
 
   private:
 

@@ -46,18 +46,18 @@ int main() {
 
    char buf[512];
    const char* name = "\x03\x77\x77\x77\x03\x63\x73\x63\x07\x63\x61\x6c\x70\x6f\x6c\x79\x03\x65\x64\x75";
-   int wlen = DnsPacket::ConstructQuery(buf, 
-                                        htons(1234),   // id 
-                                        htons(constants::opcode::Query),
+   char* p2 = DnsPacket::ConstructQuery(buf,
+                                        htons(1234),   // id
+                                        constants::opcode::Query,
                                         true,  // rd
                                         name,
                                         htons(constants::type::A),
                                         htons(constants::clz::IN));
-   
-   SYSCALL(sendto(sock, buf, wlen, 0, p->ai_addr, p->ai_addrlen), "sendto");  
+
+   SYSCALL(sendto(sock, buf, p2-buf, 0, p->ai_addr, p->ai_addrlen), "sendto");
    freeaddrinfo(servinfo);
 
-   fprintf(stdout, "Send %d bytes\n", wlen);
+   fprintf(stdout, "Send %d bytes\n", p2-buf);
    close(sock);
 
    return EXIT_SUCCESS;

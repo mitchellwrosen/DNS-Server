@@ -13,7 +13,7 @@
 
 #include <algorithm>
 #include <iostream>
-#include <vector>
+#include <set>
 
 #include "checksum.h"
 #include "debug.h"
@@ -96,15 +96,15 @@ void DnsServer::Run() {
 }
 
 bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
-   std::vector<DnsResourceRecord> answer_rrs;
-   std::vector<DnsResourceRecord> authority_rrs;
-   std::vector<DnsResourceRecord> additional_rrs;
+   std::set<DnsResourceRecord> answer_rrs;
+   std::set<DnsResourceRecord> authority_rrs;
+   std::set<DnsResourceRecord> additional_rrs;
 
    if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs))
       return true;
 
-   std::vector<DnsResourceRecord>::iterator authority_it;
-   std::vector<DnsResourceRecord>::iterator additional_it;
+   std::set<DnsResourceRecord>::iterator authority_it;
+   std::set<DnsResourceRecord>::iterator additional_it;
    for (authority_it = authority_rrs.begin();
         authority_it != authority_rrs.end();
         ++authority_it) {
@@ -157,8 +157,10 @@ void DnsServer::CacheAllResourceRecords(DnsPacket& packet) {
    int num_rrs = packet.answer_rrs() + packet.authority_rrs() +
          packet.additional_rrs();
 
-   for (int i = 0; i < num_rrs; ++i)
-      cache_.Insert(packet.GetResourceRecord());
+   for (int i = 0; i < num_rrs; ++i) {
+      DnsResourceRecord record = packet.GetResourceRecord();
+      cache_.Insert(record);
+   }
 }
 
 void DnsServer::SendQuery(char* ip, int iplen, DnsQuery& query,

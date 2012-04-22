@@ -17,18 +17,20 @@ class DnsResourceRecord {
    DnsResourceRecord(const DnsResourceRecord& rr);
    virtual ~DnsResourceRecord();
 
-   DnsQuery ConstructQuery();
+   bool operator<(const DnsResourceRecord& query) const;
+
+   DnsQuery ConstructQuery() const;
 
    void Print();
    void PrintData(int cutoff);
 
    // Getters
-   std::string name() { return name_; }
-   uint16_t type() { return type_; }
-   uint16_t clz() { return clz_; }
-   uint32_t ttl() { return ttl_; }
-   uint16_t data_len() { return data_len_; }
-   char* data() { return data_; }
+   std::string name() const { return name_; }
+   uint16_t type() const { return type_; }
+   uint16_t clz() const { return clz_; }
+   uint32_t ttl() const { return ttl_; }
+   uint16_t data_len() const { return data_len_; }
+   char* data() const { return data_; }
 
   private:
    std::string name_;

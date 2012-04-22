@@ -105,7 +105,30 @@ DnsResourceRecord::~DnsResourceRecord() {
    free(data_);
 }
 
-DnsQuery DnsResourceRecord::ConstructQuery() {
+bool DnsResourceRecord::operator<(const DnsResourceRecord& record) const {
+   if (name_ != record.name_)
+      return name_ < record.name_;
+
+   if (type_ != record.type_)
+      return type_ < record.type_;
+
+   if (clz_ != record.clz_)
+      return clz_ < record.clz_;
+
+   if (ttl_ != record.ttl_)
+      return ttl_ < record.ttl_;
+
+   if (data_len_ != record.data_len_)
+      return data_len_ < record.data_len_;
+
+   for (int i = 0; i < data_len_; ++i)
+      if (data_[i] != record.data_[i])
+         return data_[i] < record.data_[i];
+
+   return false;
+}
+
+DnsQuery DnsResourceRecord::ConstructQuery() const {
    return DnsQuery(name_, type_, clz_);
 }
 
