@@ -87,15 +87,15 @@ void DnsServer::Run() {
          query.Print();
 
          // If recursive, get answer into cache
-         if (packet.rd_flag()) 
-            Resolve(query);
+         if (packet.rd_flag())
+            Resolve(query, packet.id());
 
          //Respond
       }
-   } 
+   }
 }
 
-bool DnsServer::Resolve(DnsQuery query) {
+bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
    std::vector<DnsResourceRecord> answer_rrs;
    std::vector<DnsResourceRecord> authority_rrs;
    std::vector<DnsResourceRecord> additional_rrs;
@@ -105,14 +105,14 @@ bool DnsServer::Resolve(DnsQuery query) {
 
    std::vector<DnsResourceRecord>::iterator authority_it;
    std::vector<DnsResourceRecord>::iterator additional_it;
-   for (authority_it = authority_rrs.begin(); 
-        authority_it != authority_rrs.end(); 
+   for (authority_it = authority_rrs.begin();
+        authority_it != authority_rrs.end();
         ++authority_it) {
       for (additional_it = additional_rrs.begin();
            additional_it = additional_rrs.end();
            ++additional_it) {
          // Check it the server provided relevant additional information
-         if (!additional_it->name().compare(authority_it->data()) && 
+         if (!additional_it->name().compare(authority_it->data()) &&
              additional_it->type() == ntohs(constants::type::A))
             break;
       }
@@ -122,25 +122,26 @@ bool DnsServer::Resolve(DnsQuery query) {
          // If we successfully resolve it ourself, re-try the original query
          if (Resolve(DnsQuery(authority_it->data(),
                               htons(constants::type::A),
-                              htons(constants::clz::IN))))
-            return Resolve(query);
-         
+                              htons(constants::clz::IN)),
+                     id))
+            return Resolve(query, id);
+
          // Otherwise, continue on to the next authority record
-         else 
+         else
             continue;
-      } 
-      
+      }
+
       // Query upstream with relevant additional information
-      SendQuery(additional_it->data(), 4, query);
+      SendQuery(additional_it->data(), 4, query, id);
 
       // Time out after 2 seconds and continue to the next authority
       if (Server::HasDataToRead(sock_, 2, 0)) {
          ReadIntoBuffer();
-         DnsPacket packet(buf_);         
+         DnsPacket packet(buf_);
          CacheAllResourceRecords(packet);
          if (packet.answer_rrs())
             return true;
-         return Resolve(query);
+         return Resolve(query, id);
       }
 
       LOG << "Continuing to next authority after timeout" << std::endl;
@@ -149,4 +150,44 @@ bool DnsServer::Resolve(DnsQuery query) {
    // Couldn't resolve query
    LOG << "Couldn't resolve query for " << query.name() << std::endl;
    return false;
+}
+
+void SendQuery(char* ip, int iplen, DnsQuery& query, uint16_t id) {
+   char* p = DnsPacket::ConstructQuery(buf_, id, constants::opcode::Query,
+         false, query);
+   SendBufferToIp(ip, iplen, p - buf_);
+}
+
+void SendBufferToIp(char* ip, int iplen, int datalen) {
+   int sock;
+   struct addrinfo hints, *servinfo, *p;
+   int rv;
+   int nbytes;
+
+   memset(&hints, 0, sizeof(struct addrinfo));
+   hints.ai_family = AF_INET;
+   hints.ai_socktype = SOCK_DGRAM;
+
+   if ((rv = getaddrinfo(ip, "53", &hints, &servinfo))) {
+      std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+      return;
+   }
+
+   for (p = servinfo; p != NULL; p = p->ai_next) {
+      if (-1 == (sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol))) {
+         perror("socket");
+         continue;
+      }
+      break'
+   }
+
+   if (!p) {
+      std::cerr << "failed to bind to socket" << std::endl;
+      return;
+   }
+
+   // intentionally not error-checked
+   sendto(sock, buf_, datalen, 0, p->ai_addr, iplen);//p->ai_addrlen);
+
+   close(sock);
 }

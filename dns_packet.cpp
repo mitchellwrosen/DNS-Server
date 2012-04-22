@@ -118,24 +118,30 @@ std::string DnsPacket::GetName() {
 }
 
 // static
-int DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode, 
-         bool rd_flag, const char* name, uint16_t type, uint16_t clz) {
+char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
+      bool rd_flag, const char* name, uint16_t type, uint16_t clz) {
    char *p = ConstructHeader(buf, id, constants::qr_flag::Query, opcode,
          false, false, rd_flag, false, 0, ntohs(1), 0, 0, 0);
    int name_len = strlen(name);
-   memcpy(p, name, name_len + 1); 
+   memcpy(p, name, name_len + 1);
    memcpy(p + name_len + 1, &type, sizeof(uint16_t));
    memcpy(p + name_len + 3, &clz, sizeof(uint16_t));
-   return p + name_len + 5 - buf; 
+   return p + name_len + 5;
 }
 
+// static
+char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
+      bool rd_flag, DnsQuery& query) {
+   return ConstructQuery(buf, id, opcode, rd_flag, query.name().c_str(),
+         query.type(), query.clz());
+}
 char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
       uint16_t rcode, uint16_t queries, uint16_t answer_rrs,
       uint16_t authority_rrs, uint16_t additional_rrs) {
    memcpy(buf, &id, sizeof(uint16_t));
 
-   //uint16_t flags = ConstructFlags(qr_flag, opcode, aa_flag, tc_flag, rd_flag, 
+   //uint16_t flags = ConstructFlags(qr_flag, opcode, aa_flag, tc_flag, rd_flag,
    //      ra_flag, rcode);
    uint16_t flags = rcode; // last bits match up
    if (qr_flag) flags |= 0x8000;
@@ -144,14 +150,9 @@ char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
    if (tc_flag) flags |= 0x0200;
    if (rd_flag) flags |= 0x0100;
    if (ra_flag) flags |= 0x0080;
-
-   LOG << "Flags : " << (int) flags << std::endl;
-
    flags = htons(flags);
 
-   
    memcpy(buf + 2, &flags, sizeof(uint16_t));
-
    memcpy(buf + 4, &queries, sizeof(uint16_t));
    memcpy(buf + 6, &answer_rrs, sizeof(uint16_t));
    memcpy(buf + 8, &authority_rrs, sizeof(uint16_t));
@@ -207,7 +208,7 @@ void DnsPacket::PrintHeader() {
          opcode_str = "UNRECOGNIZED";
          break;
    }
-   std::cout << "Opcode: " << (int) opcode() << " (" << opcode_str << ")" << 
+   std::cout << "Opcode: " << (int) opcode() << " (" << opcode_str << ")" <<
          std::endl;
 
    std::cout << "Authoritative Answer: " << aa_flag() << std::endl;
@@ -248,7 +249,7 @@ void DnsPacket::PrintHeader() {
          rcode_str = "Not Zone";
          break;
    }
-   std::cout << "Response Code: " << (int) rcode() << " (" << rcode_str << ")" 
+   std::cout << "Response Code: " << (int) rcode() << " (" << rcode_str << ")"
          << std::endl;
 
    std::cout << "Queries: " << (int) queries_ << std::endl;

@@ -71,13 +71,16 @@ class DnsPacket {
   public:
    DnsPacket(char* data);
 
-   // Construct a DnsQuery at buf, return the number of bytes written
-   static int ConstructQuery(char* buf, uint16_t id, uint16_t opcode, 
-         bool rd_flag, const char* name, uint16_t type, uint16_t clz);
-   
    // Static methods for creating DNS Packets. Each returns a pointer to the
    // next character in the buffer
-   // Requires fields to be in network order
+   // Requires fields to be in network order, except opcode (because it's only
+   // 4 bits and gets bit-shifted)
+   static char* ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
+         bool rd_flag, const char* name, uint16_t type, uint16_t clz);
+
+   static char* ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
+         bool rd_flag, DnsQuery& query);
+
    static char* ConstructHeader(char* buf, uint16_t id, bool qr_flag,
          uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag,
          bool ra_flag, uint16_t rcode, uint16_t queries, uint16_t answer_rrs,
