@@ -17,6 +17,7 @@ class DnsResourceRecord {
    DnsResourceRecord(const DnsResourceRecord& rr);
    virtual ~DnsResourceRecord();
 
+   DnsResourceRecord& operator=(const DnsResourceRecord& query);
    bool operator<(const DnsResourceRecord& query) const;
 
    DnsQuery ConstructQuery() const;

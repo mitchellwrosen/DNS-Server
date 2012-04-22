@@ -105,6 +105,21 @@ DnsResourceRecord::~DnsResourceRecord() {
    free(data_);
 }
 
+DnsResourceRecord& DnsResourceRecord::operator=(const DnsResourceRecord& rr) {
+   if (this == &rr)
+      return *this;
+
+   name_ = rr.name_;
+   type_ = rr.type_;
+   clz_ = rr.clz_;
+   ttl_ = rr.ttl_;
+   data_len_ = rr.data_len_;
+
+   MALLOCCHECK((data_ = (char*) malloc((size_t) data_len_)));
+   memcpy(data_, rr.data_, data_len_);
+   return *this;
+}
+
 bool DnsResourceRecord::operator<(const DnsResourceRecord& record) const {
    if (name_ != record.name_)
       return name_ < record.name_;
