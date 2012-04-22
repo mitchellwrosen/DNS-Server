@@ -138,6 +138,9 @@ bool DnsServer::Resolve(DnsQuery query) {
          ReadIntoBuffer();
          DnsPacket packet(buf_);         
          CacheAllResourceRecords(packet);
+         if (packet.answer_rrs())
+            return true;
+         return Resolve(query);
       }
 
       LOG << "Continuing to next authority after timeout" << std::endl;

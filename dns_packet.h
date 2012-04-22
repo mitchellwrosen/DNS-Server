@@ -85,11 +85,6 @@ class DnsPacket {
 
    friend class DnsQuery;
    friend class DnsResourceRecord;
-   friend class RData_A;
-   //friend class RData_AAAA;
-   friend class RData_NAME;
-   friend class RData_MX;
-   friend class RData_SOA;
 
    // If GetQuery isn't called before GetResourceRecord, bad things will happen
    DnsQuery GetQuery();
