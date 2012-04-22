@@ -11,7 +11,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <iostream>
+#include <vector>
 
 #include "checksum.h"
 #include "debug.h"
@@ -44,6 +46,21 @@ DnsServer::DnsServer()
 DnsServer::~DnsServer() {
 }
 
+int ReadIntoBuffer() {
+   struct sockaddr addr;
+   socklen_t addr_len;
+   return ReadIntoBuffer(&addr, &addr_len);
+}
+
+int ReadIntoBuffer(struct sockaddr* client_addr,
+                    socklen_t* client_addr_len) {
+   int rlen;
+   SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
+         (struct sockaddr* &client_addr, &client_addr_len)), "recvfrom"));
+   LOG << "Read " << rlen << " bytes into buffer." << std::endl;
+   return rlen;
+}
+
 void DnsServer::Run() {
    struct sockaddr_storage client_addr;
    socklen_t client_addr_len = sizeof(struct sockaddr_storage);
@@ -52,12 +69,9 @@ void DnsServer::Run() {
    while (Server::HasDataToRead(sock_)) {
       LOG << "Has data to read" << std::endl;
 
-      int rlen;
-      SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
-            (struct sockaddr*) &client_addr, &client_addr_len)), "recvfrom");
+      ReadIntoBuffer(&client_addr, &client_addr_len);
 
       DnsPacket packet(buf_);
-      LOG << "Printing packet received (" << rlen << ") bytes)" << std::endl;
       packet.PrintHeader();
 
       // Check QR bit
@@ -72,33 +86,64 @@ void DnsServer::Run() {
          LOG << "Printing packet's query:" << std::endl;
          query.Print();
 
-         // Handle query
-         Respond(query, packet.rd_flag());
+         // If recursive, get answer into cache
+         if (packet.rd_flag()) 
+            Resolve(query);
+
+         //Respond
       }
    } 
 }
 
-void DnsServer::Respond(DnsQuery query, bool recursive) {
+bool DnsServer::Resolve(DnsQuery query) {
    std::vector<DnsResourceRecord> answer_rrs;
    std::vector<DnsResourceRecord> authority_rrs;
    std::vector<DnsResourceRecord> additional_rrs;
 
-   if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs)) {
-      //send_response
-   }
+   if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs))
+      return true;
+
+   std::vector<DnsResourceRecord>::iterator authority_it;
+   std::vector<DnsResourceRecord>::iterator additional_it;
+   for (authority_it = authority_rrs.begin(); 
+        authority_it != authority_rrs.end(); 
+        ++authority_it) {
+      for (additional_it = additional_rrs.begin();
+           additional_it = additional_rrs.end();
+           ++additional_it) {
+         // Check it the server provided relevant additional information
+         if (!additional_it->name().compare(authority_it->data()) && 
+             additional_it->type() == ntohs(constants::type::A))
+            break;
+      }
+
+      // Server didn't provide relevant additional information
+      if (additional_it == additional_rrs.end()) {
+         // If we successfully resolve it ourself, re-try the original query
+         if (Resolve(DnsQuery(authority_it->data(),
+                              htons(constants::type::A),
+                              htons(constants::clz::IN))))
+            return Resolve(query);
+         
+         // Otherwise, continue on to the next authority record
+         else 
+            continue;
+      } 
       
-   // not in cache
-   else {
-      // if recursive, query authority name server
-      if (recursive) {
-         LOG << "Cache miss, recursive";
+      // Query upstream with relevant additional information
+      SendQuery(additional_it->data(), 4, query);
+
+      // Time out after 2 seconds and continue to the next authority
+      if (Server::HasDataToRead(sock_, 2, 0)) {
+         ReadIntoBuffer();
+         DnsPacket packet(buf_);         
+         CacheAllResourceRecords(packet);
       }
 
-      // if iterative, respond with all we know
-      else {
-         LOG << "Cache miss, iterative";
+      LOG << "Continuing to next authority after timeout" << std::endl;
+   } // Authority RR loop
 
-
-      }
-   }
+   // Couldn't resolve query
+   LOG << "Couldn't resolve query for " << query.name() << std::endl;
+   return false;
 }
