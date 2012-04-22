@@ -37,20 +37,20 @@ class DnsCache {
             std::vector<DnsResourceRecord>* authority_rrs,
             std::vector<DnsResourceRecord>* additional_rrs);
 
-   bool Get(DnsQuery& query, 
+   bool Get(DnsQuery& query,
             std::vector<DnsResourceRecord>* answer_rrs,
             std::vector<DnsResourceRecord>* authority_rrs,
             std::vector<DnsResourceRecord>* additional_rrs);
 
    // Queries the cache for an exact match. Returns true if such a match is
-   // found, false otherwise. Constructs a DnsQuery with the given fields. Has 
+   // found, false otherwise. Constructs a DnsQuery with the given fields. Has
    // one out-parameter. Requires network byte order.
    bool GetIterative(std::string name,
                      uint16_t type,
                      uint16_t clz,
                      std::vector<DnsResourceRecord>* rrs);
 
-   bool GetIterative(DnsQuery& query, 
+   bool GetIterative(DnsQuery& query,
                      std::vector<DnsResourceRecord>* rrs);
 
    // Recursively queries the cache for NS records. NS record isn't hard-coded
@@ -62,18 +62,19 @@ class DnsCache {
                      uint16_t clz,
                      std::vector<DnsResourceRecord>* rrs);
 
-   void GetRecursive(DnsQuery& query, 
+   void GetRecursive(DnsQuery& query,
                      std::vector<DnsResourceRecord>* rrs);
 
 
-   // Timestamps and insertsthe resource records into the cache with key 
+   // Timestamps and insertsthe resource records into the cache with key
    // |query|.
-   void Insert(DnsQuery query, 
+   void Insert(DnsQuery query,
                std::vector<DnsResourceRecord> resource_records);
+   void Insert(DnsResourceRecord resource_record);
 
    typedef std::pair<time_t, DnsResourceRecord> TimestampedDnsResourceRecord;
    typedef std::map<DnsQuery, std::vector<TimestampedDnsResourceRecord> > Cache;
-  
+
   private:
 
    Cache cache_;

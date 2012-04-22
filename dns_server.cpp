@@ -46,17 +46,17 @@ DnsServer::DnsServer()
 DnsServer::~DnsServer() {
 }
 
-int ReadIntoBuffer() {
+int DnsServer::ReadIntoBuffer() {
    struct sockaddr addr;
    socklen_t addr_len;
    return ReadIntoBuffer(&addr, &addr_len);
 }
 
-int ReadIntoBuffer(struct sockaddr* client_addr,
-                    socklen_t* client_addr_len) {
+int DnsServer::ReadIntoBuffer(struct sockaddr* client_addr,
+                              socklen_t* client_addr_len) {
    int rlen;
    SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
-         (struct sockaddr* &client_addr, &client_addr_len)), "recvfrom"));
+         client_addr, client_addr_len)), "recvfrom");
    LOG << "Read " << rlen << " bytes into buffer." << std::endl;
    return rlen;
 }
@@ -69,7 +69,7 @@ void DnsServer::Run() {
    while (Server::HasDataToRead(sock_)) {
       LOG << "Has data to read" << std::endl;
 
-      ReadIntoBuffer(&client_addr, &client_addr_len);
+      ReadIntoBuffer((struct sockaddr*) &client_addr, &client_addr_len);
 
       DnsPacket packet(buf_);
       packet.PrintHeader();
@@ -109,7 +109,7 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
         authority_it != authority_rrs.end();
         ++authority_it) {
       for (additional_it = additional_rrs.begin();
-           additional_it = additional_rrs.end();
+           additional_it != additional_rrs.end();
            ++additional_it) {
          // Check it the server provided relevant additional information
          if (!additional_it->name().compare(authority_it->data()) &&
@@ -152,24 +152,33 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
    return false;
 }
 
-void SendQuery(char* ip, int iplen, DnsQuery& query, uint16_t id) {
+void DnsServer::CacheAllResourceRecords(DnsPacket& packet) {
+   packet.GetQuery(); // Consume query, advance cur_ pointer
+   int num_rrs = packet.answer_rrs() + packet.authority_rrs() +
+         packet.additional_rrs();
+
+   for (int i = 0; i < num_rrs; ++i)
+      cache_.Insert(packet.GetResourceRecord());
+}
+
+void DnsServer::SendQuery(char* ip, int iplen, DnsQuery& query,
+      uint16_t id) {
    char* p = DnsPacket::ConstructQuery(buf_, id, constants::opcode::Query,
          false, query);
    SendBufferToIp(ip, iplen, p - buf_);
 }
 
-void SendBufferToIp(char* ip, int iplen, int datalen) {
+void DnsServer::SendBufferToIp(char* ip, int iplen, int datalen) {
    int sock;
    struct addrinfo hints, *servinfo, *p;
-   int rv;
-   int nbytes;
 
    memset(&hints, 0, sizeof(struct addrinfo));
    hints.ai_family = AF_INET;
    hints.ai_socktype = SOCK_DGRAM;
 
-   if ((rv = getaddrinfo(ip, "53", &hints, &servinfo))) {
-      std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+   int ret;
+   if ((ret = getaddrinfo(ip, "53", &hints, &servinfo))) {
+      std::cerr << "getaddrinfo: " << gai_strerror(ret) << std::endl;
       return;
    }
 
@@ -178,7 +187,7 @@ void SendBufferToIp(char* ip, int iplen, int datalen) {
          perror("socket");
          continue;
       }
-      break'
+      break;
    }
 
    if (!p) {
@@ -188,6 +197,7 @@ void SendBufferToIp(char* ip, int iplen, int datalen) {
 
    // intentionally not error-checked
    sendto(sock, buf_, datalen, 0, p->ai_addr, iplen);//p->ai_addrlen);
+   LOG << "Sent " << datalen << " bytes upstream." << std::endl;
 
    close(sock);
 }

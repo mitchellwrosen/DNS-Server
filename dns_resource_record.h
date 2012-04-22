@@ -5,15 +5,19 @@
 
 #include <string>
 
+#include "dns_query.h"
+
 class DnsPacket;
 
 class DnsResourceRecord {
   public:
    DnsResourceRecord(DnsPacket& packet);
-   DnsResourceRecord(std::string name_, uint16_t type, uint16_t clz, 
+   DnsResourceRecord(std::string name_, uint16_t type, uint16_t clz,
          uint32_t ttl, uint16_t data_len_, char* data);
    DnsResourceRecord(const DnsResourceRecord& rr);
    virtual ~DnsResourceRecord();
+
+   DnsQuery ConstructQuery();
 
    void Print();
    void PrintData(int cutoff);

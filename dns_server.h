@@ -28,16 +28,19 @@ class DnsServer : public UdpServer {
    DnsServer();
    virtual ~DnsServer();
 
-   void ReadIntoBuffer(struct sockaddr* client_addr,
-                       socklen_t* client_addr_len);
-   void ReadIntoBuffer();
+   int ReadIntoBuffer(struct sockaddr* client_addr,
+                      socklen_t* client_addr_len);
+   int ReadIntoBuffer();
 
    void Run();
-   void Resolve(DnsQuery query, uint16_t id);
+   bool Resolve(DnsQuery query, uint16_t id);
 
    void SendQuery(char* ip, int iplen, std::string name, uint16_t type,
          uint16_t clz, uint16_t id);
    void SendQuery(char* ip, int iplen, DnsQuery& query, uint16_t id);
+
+   // Caches all resource records of a packet
+   void CacheAllResourceRecords(DnsPacket& packet);
 
    // Sends buf_ to the specified ip address, port 53
    void SendBufferToIp(char* ip, int iplen, int datalen);

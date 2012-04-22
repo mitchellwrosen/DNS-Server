@@ -18,7 +18,7 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
    clz_ = *((uint16_t*) (packet.cur_ + 2));
    ttl_ = *((uint32_t*) (packet.cur_ + 4));
    data_len_ = *((uint16_t*) (packet.cur_ + 8));
-   
+
    packet.cur_ += 10;
 
    // Special packets: NS, CNAME, PTR; MX; SOA
@@ -33,11 +33,11 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
       MALLOCCHECK((data_ = (char*) malloc(strlen(temp_c_str)+1)));
 
       memcpy(data_, temp_c_str, strlen(temp_c_str)+1);
-   } 
-   
+   }
+
    else if (type == constants::type::MX) {
       // Save a pointer to the preference and point packet to beginning of
-      // exchange. 
+      // exchange.
       char* p = packet.cur_;
       packet.cur_ += 2;
       std::string temp_str = packet.GetName();
@@ -54,15 +54,15 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
       const char* temp_c_str1 = temp_str1.c_str();
       const char* temp_c_str2 = temp_str2.c_str();
 
-      MALLOCCHECK((data_ = (char*) malloc(strlen(temp_c_str1)+1 + 
-                                          strlen(temp_c_str2)+1))); 
-      
-      memcpy(data_, 
-             temp_c_str1, 
+      MALLOCCHECK((data_ = (char*) malloc(strlen(temp_c_str1)+1 +
+                                          strlen(temp_c_str2)+1)));
+
+      memcpy(data_,
+             temp_c_str1,
              strlen(temp_c_str1)+1);
-      
-      memcpy(data_ + strlen(temp_c_str1)+1, 
-             temp_c_str2, 
+
+      memcpy(data_ + strlen(temp_c_str1)+1,
+             temp_c_str2,
              strlen(temp_c_str2)+1);
 
       memcpy(data_ + strlen(temp_c_str1)+1 + strlen(temp_c_str2)+1,
@@ -82,13 +82,13 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
              4);
    } else {
       MALLOCCHECK((data_ = (char*) malloc((size_t) ntohs(data_len_))));
-      memcpy(data_, packet.cur_, ntohs(data_len_)); 
+      memcpy(data_, packet.cur_, ntohs(data_len_));
    }
 
 }
 
-DnsResourceRecord::DnsResourceRecord(std::string name, uint16_t type, 
-      uint16_t clz, uint32_t ttl, uint16_t data_len, char* data) 
+DnsResourceRecord::DnsResourceRecord(std::string name, uint16_t type,
+      uint16_t clz, uint32_t ttl, uint16_t data_len, char* data)
       : name_(name), type_(type), clz_(clz), ttl_(ttl), data_len_(data_len) {
    MALLOCCHECK((data_ = (char*) malloc((size_t) ntohs(data_len_))));
    memcpy(data_, data, ntohs(data_len_));
@@ -103,6 +103,10 @@ DnsResourceRecord::DnsResourceRecord(const DnsResourceRecord& rr)
 
 DnsResourceRecord::~DnsResourceRecord() {
    free(data_);
+}
+
+DnsQuery DnsResourceRecord::ConstructQuery() {
+   return DnsQuery(name_, type_, clz_);
 }
 
 void DnsResourceRecord::Print() {
