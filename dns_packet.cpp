@@ -99,7 +99,7 @@ std::string DnsPacket::GetName() {
             ptr_found = true;
             cur_ = p + 2;
          }
-         p = data_ + ntohs(*((uint16_t*) p)) & 0x3FFF;
+         p = data_ + (ntohs(*((uint16_t*) p)) & 0x3FFF);
       }
 
       // p is now pointing at a number. append that many chars to name, plus
@@ -130,11 +130,70 @@ char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
 }
 
 // static
+int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
+      uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
+      uint16_t rcode, DnsPacket& query,
+      std::set<DnsResourceRecord>& answer_rrs,
+      std::set<DnsResourceRecord>& authority_rrs,
+      std::set<DnsResourceRecord>& additional_rrs) {
+   char* p = ConstructHeader(buf, id, qr_flag, opcode, aa_flag, tc_flag,
+         rd_flag, ra_flag, rcode, 1, answer_rrs.count(), authority_rrs.count(),
+         additional_rrs.count());
+   char* old_p = p;
+   bool stop_writing = false;
+
+   p = query.Construct(p);
+
+   // Write as many answers as we can
+   std::set<DnsResourceRecord>::iterator it;
+   for (it = answer_rrs.begin(); it != answer_rrs.end(); ++it) {
+      old_p = p;
+      p = it->Construct(buf, p);
+      if (p - buf >= 512) {
+         stop_writing = true;
+         break;
+      }
+   }
+
+   // Check to see if we went over 512
+   if (stop_writing)
+      return old_p - buf;
+
+   for (it = authority_rrs.begin(); it != answer_rrs.end(); ++it) {
+      old_p = p;
+      p = it->Construct(buf, p);
+      if (p - buf >= 512) {
+         stop_writing = true;
+         break;
+      }
+   }
+
+   // Check to see if we went over 512
+   if (stop_writing)
+      return old_p - buf;
+
+   for (it = additional_rrs.begin(); it != additional_rrs.end(); ++it) {
+      old_p = p;
+      p = it->Construct(buf, p);
+      if (p - buf >= 512) {
+         stop_writing = true;
+         break;
+      }
+   }
+
+   // Check to see if we went over 512
+   if (stop_writing)
+      return old_p - buf;
+
+   return p - buf;
+}
+
 char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
       bool rd_flag, DnsQuery& query) {
    return ConstructQuery(buf, id, opcode, rd_flag, query.name().c_str(),
          query.type(), query.clz());
 }
+
 char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
       uint16_t rcode, uint16_t queries, uint16_t answer_rrs,

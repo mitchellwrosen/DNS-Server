@@ -75,6 +75,13 @@ class DnsPacket {
    // next character in the buffer
    // Requires fields to be in network order, except opcode (because it's only
    // 4 bits and gets bit-shifted)
+   static int ConstructPacket(char* buf, uint16_t id, bool qr_flag,
+      uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
+      uint16_t rcode, DnsPacket& query,
+      std::set<DnsResourceRecord>& answer_rrs,
+      std::set<DnsResourceRecord>& authority_rrs,
+      std::set<DnsResourceRecord>& additional_rrs) {
+
    static char* ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
          bool rd_flag, const char* name, uint16_t type, uint16_t clz);
 
@@ -102,12 +109,12 @@ class DnsPacket {
 
    // Flags field
    bool qr_flag() { return flags() & 0x8000; }
-   uint8_t opcode() { return (flags() & 0x7800) >> 11; }
+   uint16_t opcode() { return (flags() & 0x7800) >> 11; }
    bool aa_flag() { return flags() & 0x0400; }
    bool tc_flag() { return flags() & 0x0200; }
    bool rd_flag() { return flags() & 0x0100; }
    bool ra_flag() { return flags() & 0x0080; }
-   uint8_t rcode() { return flags() & 0x000F; }
+   uint16_t rcode() { return flags() & 0x000F; }
 
    // Getters
    char* data() { return data_; }

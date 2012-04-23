@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <iostream>
 
 #include "debug.h"
@@ -83,6 +84,8 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
    } else {
       MALLOCCHECK((data_ = (char*) malloc((size_t) ntohs(data_len_))));
       memcpy(data_, packet.cur_, ntohs(data_len_));
+
+      packet.cur_ += ntohs(data_len_);
    }
 
 }
@@ -141,6 +144,66 @@ bool DnsResourceRecord::operator<(const DnsResourceRecord& record) const {
          return data_[i] < record.data_[i];
 
    return false;
+}
+
+char* Construct(char* packet, char* p) {
+   // Attempt to name-compress name
+   char* name_p = name_.c_str();
+
+   p = ConstructDnsName(packet, p, name_p);
+
+   // Write type, clz, ttl, data len
+   memcpy(p, &type_, 2);
+   memcpy(p + 2, &clz_, 2);
+   memcpy(p + 4, &ttl_, 4);
+   memcpy(p + 8, &data_len_, 2);
+   p += 10;
+
+   if (type_ == ntohs(constants::type::NS) ||
+       type_ == ntohs(constants::type::CNAME) ||
+       type_ == ntohs(constants::type::PTR)) {
+      p = ConstructDnsName(packet, p, data_);
+   } else if (type_ == ntohs(constants::type::MX)) {
+      memcpy(p, &data_, 2); // preference
+      p += 2;
+      p = ConstructDnsName(packet, p, data_ + 2);
+   } //else if (type_ == ntohs(constants::type::SOA)) {
+      // TODO this bullshit
+   //}
+   else {
+      memcpy(p, data_, ntohs(data_len_));
+      p += ntohs(data_len_);
+   }
+
+   return p;
+}
+
+char* ConstructDnsName(char* packet, char* p, char* name_p) {
+   char* pos;
+   char* initial_p = p;
+
+   // Keep trying increasingly small chunks of the name -- we'll be happy with
+   // any compression at all
+   while (*name_p) {
+      pos = std::search(packet, initial_p, name_p,
+            name_p + strlen(name_p)+1);
+
+      // Substring found -- write the pointer at p
+      if (pos != p) {
+         int offset = pos - packet;
+         offset |= 0xc000; // set first two bits
+         offset = htons(offset);
+         memcpy(p, &offset, 2);
+         p += 2;
+         break;
+      } else {
+         memcpy(p, name_p, *name_p + 1);
+         p += *name_p + 1;
+         name_p += *name_p + 1;
+      }
+   }
+
+   return p;
 }
 
 DnsQuery DnsResourceRecord::ConstructQuery() const {

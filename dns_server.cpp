@@ -72,16 +72,27 @@ void DnsServer::Run() {
          LOG << "Printing packet's query:" << std::endl;
          query.Print();
 
+         uint16_t response_code = constants::response_code::NoError;
+
          // If recursive, get answer into cache
          if (packet.rd_flag())
-            Resolve(query, packet.id());
+            Resolve(query, packet.id(), &response_code);
 
-         //Respond
+         // Respond
+         std::set<DnsResourceRecord> answer_rrs;
+         std::set<DnsResourceRecord> authority_rrs;
+         std::set<DnsResourceRecord> additional_rrs;
+
+         // Don't care about return value at this point -- we tried our best
+         cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs);
+         int packet_len = DnsPacket::ConstructPacket(buf_, packet.id(), true,
+               query.opcode(), false, false, packet.rd_flag(), true,
+               response_code, query, answer_rrs, authority_rrs, additional_rrs);
       }
    }
 }
 
-bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
+bool DnsServer::Resolve(DnsQuery query, uint16_t id, uint16_t* response_code) {
    std::set<DnsResourceRecord> answer_rrs;
    std::set<DnsResourceRecord> authority_rrs;
    std::set<DnsResourceRecord> additional_rrs;
@@ -89,8 +100,14 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
    if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs))
       return true;
 
-   LOG << "Cache miss - returned " << authority_rrs.size() << " auth, " <<
-         additional_rrs.size() << " additional." << std::endl;
+   LOG << "Cache miss - returned " << answer_rrs.size() << " answers, " <<
+         authority_rrs.size() << " auth, " << additional_rrs.size() <<
+         " additional." << std::endl;
+
+   // Cache returned a CNAME for the original query. Change the current query
+   // accordingly.
+   if (answer_rrs.size())
+      query = DnsQuery(answer_rrs.begin()->data(), query.type(), query.clz());
 
    std::set<DnsResourceRecord>::iterator authority_it;
    std::set<DnsResourceRecord>::iterator additional_it;
@@ -137,8 +154,11 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
             LOG << " -- matched expected id" << std::endl;
             CacheAllResourceRecords(packet);
 
-            if (packet.answer_rrs())
+            if (packet.answer_rrs()) {
+               // Save the response code from upstream server.
+               *response_code = packet.rcode();
                return true;
+            }
             return Resolve(query, id);
          } else {
             LOG << " -- did not match expected id " << cur_id_ << " -- ignoring."

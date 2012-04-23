@@ -172,22 +172,22 @@ bool DnsCache::Get(DnsQuery& query,
                        answer_rrs)) {
          bool found = false;
 
-         // We hit one or more CNAMEs - try to fill our answer with the
-         // query type, and authority with NSs
-         for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
-            // If we find an A record for this CNAME, consider it a cache
-            // hit. Otherwise, if we're just going to return a CNAME,
-            // consider it a cache miss
-            if (GetIterative(it->data(),
-                             query.type(),
-                             query.clz(),
-                             answer_rrs))
-               found = true;
-            GetRecursive(it->data(),
-                         ntohs(constants::type::NS),
-                         query.clz(),
-                         authority_rrs);
-         }
+         // We hit a CNAMEs - try to fill our answer with the query type,
+         // and authority with NSs. Iterate even though there will be only one.
+         // TODO don't iterate?
+         // If we find an A record for this CNAME, consider it a cache
+         // hit. Otherwise, if we're just going to return a CNAME,
+         // consider it a cache miss
+         if (GetIterative(answer_rrs->begin()->data(),
+                          query.type(),
+                          query.clz(),
+                          answer_rrs))
+            found = true;
+
+         GetRecursive(it->data(),
+                      ntohs(constants::type::NS),
+                      query.clz(),
+                      authority_rrs);
 
          // Try to fill out additional with A records of NS
          for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it)

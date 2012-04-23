@@ -14,6 +14,8 @@ class DnsQuery {
 
    bool operator<(const DnsQuery& query) const;
 
+   // "Construct" a query at |p|.
+   char* Construct(char* p);
    void Print();
 
    // Getters
