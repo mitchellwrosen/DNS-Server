@@ -13,7 +13,7 @@
 
 #include "dns_packet.h"
 
-#define PORT "5003"
+#define PORT "53"
 
 namespace constants = dns_packet_constants;
 

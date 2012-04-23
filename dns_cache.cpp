@@ -25,19 +25,19 @@
 namespace constants = dns_packet_constants;
 
 DnsCache::DnsCache() {
-   char a[] = "\x01\x61\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char b[] = "\x01\x62\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char c[] = "\x01\x63\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char d[] = "\x01\x64\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char e[] = "\x01\x65\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char f[] = "\x01\x66\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char g[] = "\x01\x67\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char h[] = "\x01\x68\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char i[] = "\x01\x69\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char j[] = "\x01\x6a\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char k[] = "\x01\x6b\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char l[] = "\x01\x6c\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
-   char m[] = "\x01\x6d\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char a[] = "\x01\x61\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char b[] = "\x01\x62\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char c[] = "\x01\x63\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char d[] = "\x01\x64\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char e[] = "\x01\x65\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char f[] = "\x01\x66\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char g[] = "\x01\x67\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char h[] = "\x01\x68\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char i[] = "\x01\x69\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char j[] = "\x01\x6a\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char k[] = "\x01\x6b\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char l[] = "\x01\x6c\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
+   char m[] = "\x01\x6d\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
 
    char a_ip[] = "\xc6\x29\x00\x04";
    char b_ip[] = "\xc0\xe4\x4f\xc9";
@@ -85,31 +85,31 @@ DnsCache::DnsCache() {
    DnsResourceRecord rr_m(".", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(m)+1), m);
 
-   DnsResourceRecord rr_a_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_a_ip(a, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), a_ip);
-   DnsResourceRecord rr_b_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_b_ip(b, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), b_ip);
-   DnsResourceRecord rr_c_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_c_ip(c, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), c_ip);
-   DnsResourceRecord rr_d_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_d_ip(d, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), d_ip);
-   DnsResourceRecord rr_e_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_e_ip(e, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), e_ip);
-   DnsResourceRecord rr_f_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_f_ip(f, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), f_ip);
-   DnsResourceRecord rr_g_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_g_ip(g, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), g_ip);
-   DnsResourceRecord rr_h_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_h_ip(h, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), h_ip);
-   DnsResourceRecord rr_i_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_i_ip(i, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), i_ip);
-   DnsResourceRecord rr_j_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_j_ip(j, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), j_ip);
-   DnsResourceRecord rr_k_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_k_ip(k, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), k_ip);
-   DnsResourceRecord rr_l_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_l_ip(l, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), l_ip);
-   DnsResourceRecord rr_m_ip(".", htons(constants::type::A),
+   DnsResourceRecord rr_m_ip(m, htons(constants::type::A),
          htons(constants::clz::IN), 0, htons(4), m_ip);
 
    Insert(query, rr_a);
@@ -126,19 +126,19 @@ DnsCache::DnsCache() {
    Insert(query, rr_l);
    Insert(query, rr_m);
 
-   Insert(query, rr_a_ip);
-   Insert(query, rr_b_ip);
-   Insert(query, rr_c_ip);
-   Insert(query, rr_d_ip);
-   Insert(query, rr_e_ip);
-   Insert(query, rr_f_ip);
-   Insert(query, rr_g_ip);
-   Insert(query, rr_h_ip);
-   Insert(query, rr_i_ip);
-   Insert(query, rr_j_ip);
-   Insert(query, rr_k_ip);
-   Insert(query, rr_l_ip);
-   Insert(query, rr_m_ip);
+   Insert(rr_a_ip);
+   Insert(rr_b_ip);
+   Insert(rr_c_ip);
+   Insert(rr_d_ip);
+   Insert(rr_e_ip);
+   Insert(rr_f_ip);
+   Insert(rr_g_ip);
+   Insert(rr_h_ip);
+   Insert(rr_i_ip);
+   Insert(rr_j_ip);
+   Insert(rr_k_ip);
+   Insert(rr_l_ip);
+   Insert(rr_m_ip);
 }
 
 bool DnsCache::Get(std::string name,
@@ -159,6 +159,8 @@ bool DnsCache::Get(DnsQuery& query,
    if (GetIterative(query, answer_rrs))
       return true;
 
+   std::set<DnsResourceRecord>::iterator it;
+
    // Look for CNAME match, only if it's not one of a few specific RRs
    uint16_t type = ntohs(query.type());
    if (type != constants::type::NS &&
@@ -172,7 +174,6 @@ bool DnsCache::Get(DnsQuery& query,
 
          // We hit one or more CNAMEs - try to fill our answer with the
          // query type, and authority with NSs
-         std::set<DnsResourceRecord>::iterator it;
          for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
             // If we find an A record for this CNAME, consider it a cache
             // hit. Otherwise, if we're just going to return a CNAME,
@@ -206,6 +207,15 @@ bool DnsCache::Get(DnsQuery& query,
                 ntohs(constants::type::NS),
                 query.clz(),
                 authority_rrs);
+
+   // Try to fill out additional information with A records of NS
+   for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it) {
+      GetIterative(it->data(),
+                   ntohs(constants::type::A),
+                   query.clz(),
+                   additional_rrs);
+   }
+
    return false;
 }
 
@@ -235,11 +245,11 @@ bool DnsCache::GetIterative(DnsQuery& query,
          }
 
       // Push all RRs to the supplied set
-      for (it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+      LOG << "-- FOUND" << std::endl;
+      for (it2 = it->second.begin(); it2 != it->second.end(); ++it2)
          rrs->insert(it2->second);
-         LOG << "-- FOUND" << std::endl;
-         return true;
-      }
+
+      return true;
    }
 
    // No hits

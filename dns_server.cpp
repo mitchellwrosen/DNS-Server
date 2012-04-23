@@ -26,8 +26,7 @@
 
 namespace constants = dns_packet_constants;
 
-DnsServer::DnsServer()
-      : port_("5003") {
+DnsServer::DnsServer() : port_("53"), cur_id_(0) {
    // set up server hints struct
    struct addrinfo hints;
 
@@ -44,21 +43,6 @@ DnsServer::DnsServer()
 }
 
 DnsServer::~DnsServer() {
-}
-
-int DnsServer::ReadIntoBuffer() {
-   struct sockaddr addr;
-   socklen_t addr_len;
-   return ReadIntoBuffer(&addr, &addr_len);
-}
-
-int DnsServer::ReadIntoBuffer(struct sockaddr* client_addr,
-                              socklen_t* client_addr_len) {
-   int rlen;
-   SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
-         client_addr, client_addr_len)), "recvfrom");
-   LOG << "Read " << rlen << " bytes into buffer." << std::endl;
-   return rlen;
 }
 
 void DnsServer::Run() {
@@ -105,6 +89,9 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
    if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs))
       return true;
 
+   LOG << "Cache miss - returned " << authority_rrs.size() << " auth, " <<
+         additional_rrs.size() << " additional." << std::endl;
+
    std::set<DnsResourceRecord>::iterator authority_it;
    std::set<DnsResourceRecord>::iterator additional_it;
    for (authority_it = authority_rrs.begin();
@@ -134,21 +121,33 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
       }
 
       // Query upstream with relevant additional information
-      SendQuery(additional_it->data(), 4, query, id);
+      struct sockaddr_in addr;
+      socklen_t addrlen = sizeof(addr);
+      SendQueryUpstream((struct sockaddr*) &addr, addrlen,
+            additional_it->data(), query);
 
       // Time out after 2 seconds and continue to the next authority
       if (Server::HasDataToRead(sock_, 2, 0)) {
-         LOG << "Got response from upstream server" << std::endl;
+         ReadIntoBuffer((struct sockaddr*) &addr, &addrlen);
 
-         ReadIntoBuffer();
          DnsPacket packet(buf_);
-         CacheAllResourceRecords(packet);
-         if (packet.answer_rrs())
-            return true;
-         return Resolve(query, id);
+         LOG << "Got response from upstream server, id " << packet.id();
+
+         if (ntohs(packet.id()) == cur_id_) {
+            LOG << " -- matched expected id" << std::endl;
+            CacheAllResourceRecords(packet);
+
+            if (packet.answer_rrs())
+               return true;
+            return Resolve(query, id);
+         } else {
+            LOG << " -- did not match expected id " << cur_id_ << " -- ignoring."
+                  << std::endl;
+         }
       }
 
       LOG << "Continuing to next authority after timeout" << std::endl;
+      cur_id_++;
    } // Authority RR loop
 
    // Couldn't resolve query
@@ -167,43 +166,38 @@ void DnsServer::CacheAllResourceRecords(DnsPacket& packet) {
    }
 }
 
-void DnsServer::SendQuery(char* ip, int iplen, DnsQuery& query,
-      uint16_t id) {
-   char* p = DnsPacket::ConstructQuery(buf_, id, constants::opcode::Query,
-         false, query);
-   SendBufferToIp(ip, iplen, p - buf_);
+void DnsServer::SendQueryUpstream(struct sockaddr* addr, socklen_t addrlen,
+      char* ip, DnsQuery& query) {
+   // Prepare sockaddr_in for upstream server
+   // TODO i6 compatibility
+   ((struct sockaddr_in*) addr)->sin_family = AF_INET;
+   ((struct sockaddr_in*) addr)->sin_port = htons(53);
+   memcpy(&((struct sockaddr_in*) addr)->sin_addr, ip, addrlen);
+
+   char* p = DnsPacket::ConstructQuery(buf_, htons(cur_id_),
+         constants::opcode::Query, false, query);
+
+   LOG << "Sending query with id " << cur_id_ << " upstream." << std::endl;
+   SendBufferToAddr(addr, addrlen, p - buf_);
 }
 
-void DnsServer::SendBufferToIp(char* ip, int iplen, int datalen) {
-   int sock;
-   struct addrinfo hints, *servinfo, *p;
-
-   memset(&hints, 0, sizeof(struct addrinfo));
-   hints.ai_family = AF_INET;
-   hints.ai_socktype = SOCK_DGRAM;
-
-   int ret;
-   if ((ret = getaddrinfo(ip, "53", &hints, &servinfo))) {
-      std::cerr << "getaddrinfo: " << gai_strerror(ret) << std::endl;
-      return;
-   }
-
-   for (p = servinfo; p != NULL; p = p->ai_next) {
-      if (-1 == (sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol))) {
-         perror("socket");
-         continue;
-      }
-      break;
-   }
-
-   if (!p) {
-      std::cerr << "failed to bind to socket" << std::endl;
-      return;
-   }
-
+void DnsServer::SendBufferToAddr(struct sockaddr* addr, socklen_t addrlen,
+      int datalen) {
    // intentionally not error-checked
-   sendto(sock, buf_, datalen, 0, p->ai_addr, iplen);//p->ai_addrlen);
-   LOG << "Sent " << datalen << " bytes upstream." << std::endl;
+   sendto(sock_, buf_, datalen, 0, addr, addrlen);
 
-   close(sock);
+   // TODO i6
+   char* ip_dots_and_numbers =
+         inet_ntoa(((struct sockaddr_in*) addr)->sin_addr);
+   LOG << "Sent " << datalen << " bytes upstream to " << ip_dots_and_numbers <<
+         std::endl;
+}
+
+int DnsServer::ReadIntoBuffer(struct sockaddr* client_addr,
+                              socklen_t* client_addr_len) {
+   int rlen;
+   SYSCALL((rlen = recvfrom(sock_, buf_, ETH_DATA_LEN, 0,
+         client_addr, client_addr_len)), "recvfrom");
+   LOG << "Read " << rlen << " bytes into buffer." << std::endl;
+   return rlen;
 }

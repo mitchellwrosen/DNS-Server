@@ -28,22 +28,20 @@ class DnsServer : public UdpServer {
    DnsServer();
    virtual ~DnsServer();
 
-   int ReadIntoBuffer(struct sockaddr* client_addr,
-                      socklen_t* client_addr_len);
-   int ReadIntoBuffer();
-
    void Run();
    bool Resolve(DnsQuery query, uint16_t id);
 
-   void SendQuery(char* ip, int iplen, std::string name, uint16_t type,
-         uint16_t clz, uint16_t id);
-   void SendQuery(char* ip, int iplen, DnsQuery& query, uint16_t id);
+   int ReadIntoBuffer(struct sockaddr* client_addr, socklen_t* client_addr_len);
 
-   // Caches all resource records of a packet
+   // Sends a DnsQuery to an upstream server, fills in addr info (TODO i6)
+   void SendQueryUpstream(struct sockaddr* addr, socklen_t addrlen, char* ip,
+         DnsQuery& query);
+
+   // Caches all resource records of a packet.
    void CacheAllResourceRecords(DnsPacket& packet);
 
-   // Sends buf_ to the specified ip address, port 53
-   void SendBufferToIp(char* ip, int iplen, int datalen);
+   // Sends buf_ to the specified address.
+   void SendBufferToAddr(struct sockaddr* addr, socklen_t addrlen, int datalen);
 
   protected:
 
@@ -51,6 +49,9 @@ class DnsServer : public UdpServer {
    DnsCache cache_;
 
    const std::string port_;
+   int cur_id_; // Use unique id for each upstream query.
+
+
    char buf_[ETH_DATA_LEN];
 };
 

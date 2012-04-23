@@ -24,9 +24,9 @@ bool DnsQuery::operator<(const DnsQuery& query) const {
       return name_ < query.name_;
 
    // Then types
-   if (type_ != query.type_) 
+   if (type_ != query.type_)
       return type_ < query.type_;
-   
+
    // Then classes
    return clz_ < query.clz_;
 }
