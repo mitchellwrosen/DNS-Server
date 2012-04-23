@@ -75,10 +75,12 @@ void DnsServer::Run() {
       packet.PrintHeader();
 
       // Check QR bit
-      LOG << "qr_flag: " << packet.qr_flag() << std::endl;
       if (packet.qr_flag()) {
          // Response
          // Cache all RRs
+         // This will never be the case for milestone 1
+         LOG << "ERROR: RESPONSE RECEIVED (shouldnt happen in milestone 1)" <<
+               std::endl;
       }
       else {
          // New query
@@ -136,6 +138,8 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id) {
 
       // Time out after 2 seconds and continue to the next authority
       if (Server::HasDataToRead(sock_, 2, 0)) {
+         LOG << "Got response from upstream server" << std::endl;
+
          ReadIntoBuffer();
          DnsPacket packet(buf_);
          CacheAllResourceRecords(packet);

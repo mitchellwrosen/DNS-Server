@@ -25,56 +25,120 @@
 namespace constants = dns_packet_constants;
 
 DnsCache::DnsCache() {
-   char a[] = "a.root-servers.net.";
-   char b[] = "b.root-servers.net.";
-   char c[] = "c.root-servers.net.";
-   char d[] = "d.root-servers.net.";
-   char e[] = "e.root-servers.net.";
-   char f[] = "f.root-servers.net.";
-   char g[] = "g.root-servers.net.";
-   char h[] = "h.root-servers.net.";
-   char i[] = "i.root-servers.net.";
-   char j[] = "j.root-servers.net.";
-   char k[] = "k.root-servers.net.";
-   char l[] = "l.root-servers.net.";
-   char m[] = "m.root-servers.net.";
+   char a[] = "\x01\x61\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char b[] = "\x01\x62\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char c[] = "\x01\x63\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char d[] = "\x01\x64\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char e[] = "\x01\x65\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char f[] = "\x01\x66\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char g[] = "\x01\x67\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char h[] = "\x01\x68\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char i[] = "\x01\x69\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char j[] = "\x01\x6a\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char k[] = "\x01\x6b\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char l[] = "\x01\x6c\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+   char m[] = "\x01\x6d\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x75";
+
+   char a_ip[] = "\xc6\x29\x00\x04";
+   char b_ip[] = "\xc0\xe4\x4f\xc9";
+   char c_ip[] = "\xc0\x21\x04\x0c";
+   char d_ip[] = "\x80\x08\x0a\x5a";
+   char e_ip[] = "\xc0\xcb\xe6\x0a";
+   char f_ip[] = "\xc0\x05\x05\xf1";
+   char g_ip[] = "\xc0\x70\x24\x04";
+   char h_ip[] = "\x80\x3f\x02\x35";
+   char i_ip[] = "\xc0\x24\x94\x11";
+   char j_ip[] = "\x81\x3a\x80\x1e";
+   char k_ip[] = "\xc1\x00\x0e\x81";
+   char l_ip[] = "\xc7\x07\x53\x2a";
+   char m_ip[] = "\xca\x0c\x1b\x21";
 
    // Initialize with root servers -- match with queries for ""
    DnsQuery query = DnsQuery("",
                              htons(constants::type::NS),
                              htons(constants::clz::IN));
 
-   std::set<DnsResourceRecord> root_servers;
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(a)+1), a)); //TODO +1? or no?
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(b)+1), b));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(c)+1), c));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(d)+1), d));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(e)+1), e));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(f)+1), f));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(g)+1), g));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(h)+1), h));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(i)+1), i));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(j)+1), j));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(k)+1), k));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(l)+1), l));
-   root_servers.insert(DnsResourceRecord(".", htons(constants::type::NS),
-         htons(constants::clz::IN), 0, htons(strlen(m)+1), m));
+   DnsResourceRecord rr_a(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(a)+1), a);
+   DnsResourceRecord rr_b(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(b)+1), b);
+   DnsResourceRecord rr_c(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(c)+1), c);
+   DnsResourceRecord rr_d(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(d)+1), d);
+   DnsResourceRecord rr_e(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(e)+1), e);
+   DnsResourceRecord rr_f(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(f)+1), f);
+   DnsResourceRecord rr_g(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(g)+1), g);
+   DnsResourceRecord rr_h(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(h)+1), h);
+   DnsResourceRecord rr_i(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(i)+1), i);
+   DnsResourceRecord rr_j(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(j)+1), j);
+   DnsResourceRecord rr_k(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(k)+1), k);
+   DnsResourceRecord rr_l(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(l)+1), l);
+   DnsResourceRecord rr_m(".", htons(constants::type::NS),
+         htons(constants::clz::IN), 0, htons(strlen(m)+1), m);
 
-   // TODO root servers' IPs
+   DnsResourceRecord rr_a_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), a_ip);
+   DnsResourceRecord rr_b_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), b_ip);
+   DnsResourceRecord rr_c_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), c_ip);
+   DnsResourceRecord rr_d_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), d_ip);
+   DnsResourceRecord rr_e_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), e_ip);
+   DnsResourceRecord rr_f_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), f_ip);
+   DnsResourceRecord rr_g_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), g_ip);
+   DnsResourceRecord rr_h_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), h_ip);
+   DnsResourceRecord rr_i_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), i_ip);
+   DnsResourceRecord rr_j_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), j_ip);
+   DnsResourceRecord rr_k_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), k_ip);
+   DnsResourceRecord rr_l_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), l_ip);
+   DnsResourceRecord rr_m_ip(".", htons(constants::type::A),
+         htons(constants::clz::IN), 0, htons(4), m_ip);
 
-   Insert(query, &root_servers);
+   Insert(query, rr_a);
+   Insert(query, rr_b);
+   Insert(query, rr_c);
+   Insert(query, rr_d);
+   Insert(query, rr_e);
+   Insert(query, rr_f);
+   Insert(query, rr_g);
+   Insert(query, rr_h);
+   Insert(query, rr_i);
+   Insert(query, rr_j);
+   Insert(query, rr_k);
+   Insert(query, rr_l);
+   Insert(query, rr_m);
+
+   Insert(query, rr_a_ip);
+   Insert(query, rr_b_ip);
+   Insert(query, rr_c_ip);
+   Insert(query, rr_d_ip);
+   Insert(query, rr_e_ip);
+   Insert(query, rr_f_ip);
+   Insert(query, rr_g_ip);
+   Insert(query, rr_h_ip);
+   Insert(query, rr_i_ip);
+   Insert(query, rr_j_ip);
+   Insert(query, rr_k_ip);
+   Insert(query, rr_l_ip);
+   Insert(query, rr_m_ip);
 }
 
 bool DnsCache::Get(std::string name,
@@ -222,7 +286,8 @@ void DnsCache::Insert(DnsQuery& query,
             std::pair<DnsQuery, std::set<TimestampedDnsResourceRecord> >
                   (query, timestamped_resource_records));
    } else {
-      LOG << "Query found in cache -- adding resource record to set";
+      LOG << "Query found in cache -- adding resource record to set" <<
+            std::endl;
       it->second.insert(TimestampedDnsResourceRecord(
             time(NULL), resource_record));
    }
