@@ -99,7 +99,7 @@ std::string DnsPacket::GetName() {
             ptr_found = true;
             cur_ = p + 2;
          }
-         p = data_ + ntohs(*((uint16_t*) p) & 0x3FFF);
+         p = data_ + ntohs(*((uint16_t*) p)) & 0x3FFF;
       }
 
       // p is now pointing at a number. append that many chars to name, plus
