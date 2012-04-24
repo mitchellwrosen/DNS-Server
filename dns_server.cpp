@@ -86,8 +86,10 @@ void DnsServer::Run() {
          // Don't care about return value at this point -- we tried our best
          cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs);
          int packet_len = DnsPacket::ConstructPacket(buf_, packet.id(), true,
-               query.opcode(), false, false, packet.rd_flag(), true,
+               packet.opcode(), false, false, packet.rd_flag(), true,
                response_code, query, answer_rrs, authority_rrs, additional_rrs);
+         SendBufferToAddr((struct sockaddr*) &client_addr, client_addr_len,
+               packet_len);
       }
    }
 }
@@ -129,8 +131,9 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id, uint16_t* response_code) {
          if (Resolve(DnsQuery(authority_it->data(),
                               htons(constants::type::A),
                               htons(constants::clz::IN)),
-                     id))
-            return Resolve(query, id);
+                     id,
+                     response_code))
+            return Resolve(query, id, response_code);
 
          // Otherwise, continue on to the next authority record
          else
@@ -155,11 +158,16 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id, uint16_t* response_code) {
             CacheAllResourceRecords(packet);
 
             if (packet.answer_rrs()) {
+               // TODO check if answer_rrs() contains |query|, or otherwise it
+               // contains just a CNAME. I think this can be accomplished by
+               // simply calling Resolve() from here, so I'll try it.
+
                // Save the response code from upstream server.
-               *response_code = packet.rcode();
+               //*response_code = packet.rcode();
+               //return Resolve(query, id, response_code);
                return true;
             }
-            return Resolve(query, id);
+            return Resolve(query, id, response_code);
          } else {
             LOG << " -- did not match expected id " << cur_id_ << " -- ignoring."
                   << std::endl;

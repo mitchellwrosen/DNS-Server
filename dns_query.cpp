@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <iostream>
 
@@ -31,18 +32,18 @@ bool DnsQuery::operator<(const DnsQuery& query) const {
    return clz_ < query.clz_;
 }
 
-char* DnsQuery::Construct(char* p) {
-  char* name = name_.c_str();
+char* DnsQuery::Construct(char* p) const {
+  const char* name = name_.c_str();
   int namelen = strlen(name)+1;
 
   memcpy(p, name, namelen);
-  memcpy(p + namelen, type_, 2);
-  memcpy(p + namelen + 2, clz_, 2);
+  memcpy(p + namelen, &type_, 2);
+  memcpy(p + namelen + 2, &clz_, 2);
 
   return p + namelen + 4;
 }
 
-void DnsQuery::Print() {
+void DnsQuery::Print() const {
    std::cout << "Query:" << std::endl;
    std::cout << "   Name: " << name_ << std::endl;
    std::cout << "   Type: " << ntohs(type_) << std::endl;

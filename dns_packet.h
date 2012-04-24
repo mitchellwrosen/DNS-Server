@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include <vector>
+#include <set>
 
 #include "dns_query.h"
 
@@ -77,10 +77,10 @@ class DnsPacket {
    // 4 bits and gets bit-shifted)
    static int ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
-      uint16_t rcode, DnsPacket& query,
+      uint16_t rcode, DnsQuery& query,
       std::set<DnsResourceRecord>& answer_rrs,
       std::set<DnsResourceRecord>& authority_rrs,
-      std::set<DnsResourceRecord>& additional_rrs) {
+      std::set<DnsResourceRecord>& additional_rrs);
 
    static char* ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
          bool rd_flag, const char* name, uint16_t type, uint16_t clz);
@@ -92,6 +92,9 @@ class DnsPacket {
          uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag,
          bool ra_flag, uint16_t rcode, uint16_t queries, uint16_t answer_rrs,
          uint16_t authority_rrs, uint16_t additional_rrs);
+
+   // "Constructs" a query onto a buffer
+   char* Construct(char* p);
 
    friend class DnsQuery;
    friend class DnsResourceRecord;

@@ -22,7 +22,11 @@ class DnsResourceRecord {
 
    // "Construct" a resource record onto a buffer, given the beginning of the
    // packet (for name compression) and the current pointer
-   char* Construct(char* packet, char* p)
+   char* Construct(char* packet, char* p) const;
+
+   // "Construct" a <dns name> onto a buffer, possibly compressing the name.
+   char* ConstructDnsName(char* packet, char* p,
+         const char* name_p) const;
 
    // Construct a DnsQuery from the first three fields of this record
    DnsQuery ConstructQuery() const;

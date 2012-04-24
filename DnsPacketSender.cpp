@@ -57,7 +57,7 @@ int main() {
    SYSCALL(sendto(sock, buf, p2-buf, 0, p->ai_addr, p->ai_addrlen), "sendto");
    freeaddrinfo(servinfo);
 
-   fprintf(stdout, "Sent %ld bytes\n", p2-buf);
+   fprintf(stdout, "Sent %d bytes\n", p2-buf);
    close(sock);
 
    return EXIT_SUCCESS;

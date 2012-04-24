@@ -146,9 +146,9 @@ bool DnsResourceRecord::operator<(const DnsResourceRecord& record) const {
    return false;
 }
 
-char* Construct(char* packet, char* p) {
+char* DnsResourceRecord::Construct(char* packet, char* p) const {
    // Attempt to name-compress name
-   char* name_p = name_.c_str();
+   const char* name_p = name_.c_str();
 
    p = ConstructDnsName(packet, p, name_p);
 
@@ -178,7 +178,8 @@ char* Construct(char* packet, char* p) {
    return p;
 }
 
-char* ConstructDnsName(char* packet, char* p, char* name_p) {
+char* DnsResourceRecord::ConstructDnsName(
+      char* packet, char* p, const char* name_p) const {
    char* pos;
    char* initial_p = p;
 

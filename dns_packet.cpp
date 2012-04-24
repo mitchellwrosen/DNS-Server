@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <iostream>
+#include <set>
 
 #include "debug.h"
 
@@ -132,13 +133,13 @@ char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
 // static
 int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
-      uint16_t rcode, DnsPacket& query,
+      uint16_t rcode, DnsQuery& query,
       std::set<DnsResourceRecord>& answer_rrs,
       std::set<DnsResourceRecord>& authority_rrs,
       std::set<DnsResourceRecord>& additional_rrs) {
    char* p = ConstructHeader(buf, id, qr_flag, opcode, aa_flag, tc_flag,
-         rd_flag, ra_flag, rcode, 1, answer_rrs.count(), authority_rrs.count(),
-         additional_rrs.count());
+         rd_flag, ra_flag, rcode, 1, answer_rrs.size(), authority_rrs.size(),
+         additional_rrs.size());
    char* old_p = p;
    bool stop_writing = false;
 

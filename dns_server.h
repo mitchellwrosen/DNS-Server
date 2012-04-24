@@ -29,7 +29,7 @@ class DnsServer : public UdpServer {
    virtual ~DnsServer();
 
    void Run();
-   bool Resolve(DnsQuery query, uint16_t id);
+   bool Resolve(DnsQuery query, uint16_t id, uint16_t* response_code);
 
    int ReadIntoBuffer(struct sockaddr* client_addr, socklen_t* client_addr_len);
 

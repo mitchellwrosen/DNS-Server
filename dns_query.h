@@ -15,13 +15,13 @@ class DnsQuery {
    bool operator<(const DnsQuery& query) const;
 
    // "Construct" a query at |p|.
-   char* Construct(char* p);
-   void Print();
+   char* Construct(char* p) const;
+   void Print() const;
 
    // Getters
-   std::string name() { return name_; }
-   uint16_t type() { return type_; }
-   uint16_t clz() { return clz_; }
+   std::string name() const { return name_; }
+   uint16_t type() const { return type_; }
+   uint16_t clz() const { return clz_; }
 
   private:
    std::string name_;
