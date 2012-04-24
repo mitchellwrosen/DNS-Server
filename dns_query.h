@@ -16,7 +16,13 @@ class DnsQuery {
 
    // "Construct" a query at |p|.
    char* Construct(char* p) const;
+
    void Print() const;
+   std::string ToString() const;
+
+   // Host byte-order
+   static std::string TypeToString(uint16_t type);
+   static std::string ClassToString(uint16_t clz);
 
    // Getters
    std::string name() const { return name_; }

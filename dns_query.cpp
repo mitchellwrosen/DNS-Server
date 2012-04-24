@@ -7,6 +7,8 @@
 #include "dns_packet.h"
 #include "dns_query.h"
 
+namespace constants = dns_packet_constants;
+
 DnsQuery::DnsQuery(DnsPacket& packet) {
    name_ = packet.GetName();
 
@@ -48,4 +50,51 @@ void DnsQuery::Print() const {
    std::cout << "   Name: " << name_ << std::endl;
    std::cout << "   Type: " << ntohs(type_) << std::endl;
    std::cout << "   Class: " << ntohs(clz_) << std::endl;
+}
+
+std::string DnsQuery::ToString() const {
+   std::string ret;
+
+   ret.push_back('(');
+   ret.append(DnsPacket::DnsNameToString(name_));
+   ret.append(", ");
+   ret.append(TypeToString(ntohs(type_)));
+   ret.append(", ");
+   ret.append(ClassToString(ntohs(clz_)));
+   ret.push_back(')');
+
+   return ret;
+}
+
+// static
+std::string DnsQuery::TypeToString(uint16_t type) {
+   if (type == constants::type::A)
+      return "A";
+   else if (type == constants::type::AAAA)
+      return "AAAA";
+   else if (type == constants::type::NS)
+      return "NS";
+   else if (type == constants::type::CNAME)
+      return "CNAME";
+   else if (type == constants::type::SOA)
+      return "SOA";
+   else if (type == constants::type::PTR)
+      return "PTR";
+   else if (type == constants::type::MX)
+      return "MX";
+   else
+      return "UNKNOWN"; //TODO finish else-if chain
+}
+
+std::string DnsQuery::ClassToString(uint16_t clz) {
+   if (clz == constants::clz::IN)
+      return "IN";
+   else if (clz == constants::clz::CS)
+      return "CS";
+   else if (clz == constants::clz::CH)
+      return "CH";
+   else if (clz == constants::clz::HS)
+      return "HS";
+   else
+      return "UNKNOWN";
 }

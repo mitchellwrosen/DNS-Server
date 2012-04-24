@@ -69,8 +69,7 @@ void DnsServer::Run() {
       else {
          // New query
          DnsQuery query = packet.GetQuery();
-         LOG << "Printing packet's query:" << std::endl;
-         query.Print();
+         LOG << "Query: " << query.ToString() << std::endl;
 
          uint16_t response_code = constants::response_code::NoError;
 
@@ -149,7 +148,7 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
          ReadIntoBuffer((struct sockaddr*) &addr, &addrlen);
 
          DnsPacket packet(buf_);
-         LOG << "Got response from upstream server, id " << packet.id();
+         LOG << "Got response from upstream server, id " << ntohs(packet.id());
 
          if (ntohs(packet.id()) == cur_id_) {
             LOG << " -- matched expected id" << std::endl;

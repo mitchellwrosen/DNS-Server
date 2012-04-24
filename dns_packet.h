@@ -54,6 +54,7 @@ extern const int HINFO;
 extern const int MINFO;
 extern const int MX;
 extern const int TXT;
+extern const int AAAA;
 }
 
 namespace clz {

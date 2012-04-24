@@ -172,9 +172,8 @@ bool DnsCache::Get(DnsQuery& query,
                        answer_rrs)) {
          bool found = false;
 
-         // We hit a CNAMEs - try to fill our answer with the query type,
-         // and authority with NSs. Iterate even though there will be only one.
-         // TODO don't iterate?
+         // We hit a CNAME - try to fill our answer with the query type,
+         // and authority with NSs.
          // If we find an A record for this CNAME, consider it a cache
          // hit. Otherwise, if we're just going to return a CNAME,
          // consider it a cache miss
@@ -229,18 +228,18 @@ bool DnsCache::GetIterative(std::string name,
 
 bool DnsCache::GetIterative(DnsQuery& query,
                             std::set<DnsResourceRecord>* rrs) {
-   LOG << "Looking for exact match (" <<
-         DnsPacket::DnsNameToString(query.name()) << ", " <<
-         ntohs(query.type()) << ", " << ntohs(query.clz()) << ") ";
+   LOG << "Looking for " << query.ToString();
    Cache::iterator it = cache_.find(query);
    if (it != cache_.end()) {
       time_t now = time(NULL);
 
       std::set<TimestampedDnsResourceRecord>::iterator it2;
       for (it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+         // TODO Remove all expired records
          // Check every returned RR is not expired (ignore TTL == 0)
          if (ntohl(it2->second.ttl()) &&
              now - it2->first > (time_t) ntohl(it2->second.ttl())) {
+            // TODO Remove
             LOG << "-- NOT FOUND" << std::endl;
             return false;
          }
@@ -289,7 +288,8 @@ void DnsCache::Insert(DnsQuery& query,
                       const DnsResourceRecord& resource_record) {
    Cache::iterator it = cache_.find(query);
    if (it == cache_.end()) {
-      LOG << "Query not found in cache -- inserting" << std::endl;
+      LOG << "Query " << query.ToString() << " not found in cache -- inserting"
+            << std::endl;
       std::set<TimestampedDnsResourceRecord> timestamped_resource_records;
       timestamped_resource_records.insert(
             TimestampedDnsResourceRecord(time(NULL), resource_record));
@@ -297,8 +297,8 @@ void DnsCache::Insert(DnsQuery& query,
             std::pair<DnsQuery, std::set<TimestampedDnsResourceRecord> >
                   (query, timestamped_resource_records));
    } else {
-      LOG << "Query found in cache -- adding resource record to set" <<
-            std::endl;
+      LOG << "Query " << query.ToString() <<
+            " found in cache -- adding resource record to set" << std::endl;
       it->second.insert(TimestampedDnsResourceRecord(
             time(NULL), resource_record));
    }
