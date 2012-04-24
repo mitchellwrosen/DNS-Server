@@ -89,6 +89,22 @@ DnsPacket::DnsPacket(char* data)
         authority_rrs_(ntohs(*((uint16_t*) (data + kAuthorityRrsOffset)))),
         additional_rrs_(ntohs(*((uint16_t*) (data + kAdditionalRrsOffset)))) { }
 
+std::string DnsPacket::DnsNameToString(std::string name) {
+   std::string ret;
+   const char* c_name = name.c_str();
+   const char* p = c_name;
+
+   while (*p) {
+      ret.push_back('[');
+      ret.push_back(*p + '0');
+      ret.push_back(']');
+      ret.append(p+1, *p);
+      p += *p+1;
+   }
+
+   return ret;
+}
+
 std::string DnsPacket::GetName() {
    bool ptr_found = false;
    char* p = cur_;

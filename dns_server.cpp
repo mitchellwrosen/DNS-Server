@@ -94,7 +94,7 @@ void DnsServer::Run() {
    }
 }
 
-bool DnsServer::Resolve(DnsQuery query, uint16_t id, uint16_t* response_code) {
+bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
    std::set<DnsResourceRecord> answer_rrs;
    std::set<DnsResourceRecord> authority_rrs;
    std::set<DnsResourceRecord> additional_rrs;
@@ -128,11 +128,9 @@ bool DnsServer::Resolve(DnsQuery query, uint16_t id, uint16_t* response_code) {
       // Server didn't provide relevant additional information
       if (additional_it == additional_rrs.end()) {
          // If we successfully resolve it ourself, re-try the original query
-         if (Resolve(DnsQuery(authority_it->data(),
-                              htons(constants::type::A),
-                              htons(constants::clz::IN)),
-                     id,
-                     response_code))
+         DnsQuery query2(authority_it->data(), htons(constants::type::A),
+               htons(constants::clz::IN));
+         if (Resolve(query2, id, response_code))
             return Resolve(query, id, response_code);
 
          // Otherwise, continue on to the next authority record

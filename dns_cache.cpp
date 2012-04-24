@@ -229,7 +229,8 @@ bool DnsCache::GetIterative(std::string name,
 
 bool DnsCache::GetIterative(DnsQuery& query,
                             std::set<DnsResourceRecord>* rrs) {
-   LOG << "Looking for exact match (" << query.name() << ", " <<
+   LOG << "Looking for exact match (" <<
+         DnsPacket::DnsNameToString(query.name()) << ", " <<
          ntohs(query.type()) << ", " << ntohs(query.clz()) << ") ";
    Cache::iterator it = cache_.find(query);
    if (it != cache_.end()) {

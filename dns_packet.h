@@ -71,6 +71,9 @@ class DnsPacket {
   public:
    DnsPacket(char* data);
 
+   // Dns name format to string format
+   static std::string DnsNameToString(std::string name);
+
    // Static methods for creating DNS Packets. Each returns a pointer to the
    // next character in the buffer
    // Requires fields to be in network order, except opcode (because it's only
