@@ -3,7 +3,9 @@
 #include <string.h>
 
 #include <iostream>
+#include <map>
 #include <set>
+#include <utility>
 
 #include "debug.h"
 
@@ -159,13 +161,19 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
    char* old_p = p;
    bool stop_writing = false;
 
+   // Create offset map and initialize with the offset of the query's name
+   std::map<std::string, uint16_t> offset_map;
+   offset_map.insert(
+         std::pair<std::string, uint16_t>(query.name(), (uint16_t) (p - buf)));
+
+   // Write the query
    p = query.Construct(p);
 
    // Write as many answers as we can
    std::set<DnsResourceRecord>::iterator it;
    for (it = answer_rrs.begin(); it != answer_rrs.end(); ++it) {
       old_p = p;
-      p = it->Construct(buf, p);
+      p = it->Construct(&offset_map, p, buf);
       if (p - buf >= 512) {
          stop_writing = true;
          break;
@@ -176,9 +184,10 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
    if (stop_writing)
       return old_p - buf;
 
+   // Write as many authorities as we can
    for (it = authority_rrs.begin(); it != answer_rrs.end(); ++it) {
       old_p = p;
-      p = it->Construct(buf, p);
+      p = it->Construct(&offset_map, p, buf);
       if (p - buf >= 512) {
          stop_writing = true;
          break;
@@ -189,9 +198,10 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
    if (stop_writing)
       return old_p - buf;
 
+   // Write as many additionals as we can
    for (it = additional_rrs.begin(); it != additional_rrs.end(); ++it) {
       old_p = p;
-      p = it->Construct(buf, p);
+      p = it->Construct(&offset_map, p, buf);
       if (p - buf >= 512) {
          stop_writing = true;
          break;
@@ -249,8 +259,7 @@ DnsResourceRecord DnsPacket::GetResourceRecord() {
 
 // static
 std::string DnsPacket::ShortenName(std::string name) {
-   uint8_t len = name.at(0);
-   return name.substr(len+1);
+   return name.substr(name.at(0)+1);
 }
 
 // static

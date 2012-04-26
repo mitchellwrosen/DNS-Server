@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <map>
 
 #include "dns_query.h"
 
@@ -22,11 +23,14 @@ class DnsResourceRecord {
 
    // "Construct" a resource record onto a buffer, given the beginning of the
    // packet (for name compression) and the current pointer
-   char* Construct(char* packet, char* p) const;
+   char* Construct(std::map<std::string, uint16_t>* offset_map, char* p,
+         char* packet) const;
 
    // "Construct" a <dns name> onto a buffer, possibly compressing the name.
-   char* ConstructDnsName(char* packet, char* p,
-         const char* name_p) const;
+   char* ConstructDnsName(std::map<std::string, uint16_t>* offset_map,
+         char* p, uint16_t offset, char* name) const;
+   char* ConstructDnsName(std::map<std::string, uint16_t>* offset_map,
+         char* p, uint16_t offset, std::string name) const;
 
    // Construct a DnsQuery from the first three fields of this record
    DnsQuery ConstructQuery() const;

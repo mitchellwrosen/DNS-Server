@@ -83,12 +83,14 @@ void DnsServer::Run() {
          std::set<DnsResourceRecord> additional_rrs;
 
          // Don't care about return value at this point -- we tried our best
+         /*
          cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs);
          int packet_len = DnsPacket::ConstructPacket(buf_, packet.id(), true,
                packet.opcode(), false, false, packet.rd_flag(), true,
                response_code, query, answer_rrs, authority_rrs, additional_rrs);
          SendBufferToAddr((struct sockaddr*) &client_addr, client_addr_len,
                packet_len);
+         */
       }
    }
 }
@@ -144,7 +146,7 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
       socklen_t addrlen = sizeof(addr);
       addr.sin_family = AF_INET;
       addr.sin_port = htons(53);
-      memcpy(&addr.sin_addr, additional_it->data(), addrlen);
+      memcpy(&addr.sin_addr, additional_it->data(), sizeof(addr.sin_addr));
 
       SendQueryUpstream((struct sockaddr*) &addr, addrlen, query);
 
