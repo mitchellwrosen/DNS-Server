@@ -253,6 +253,40 @@ std::string DnsPacket::ShortenName(std::string name) {
    return name.substr(len+1);
 }
 
+// static
+std::string DnsPacket::TypeToString(uint16_t type) {
+   if (type == constants::type::A)
+      return "A";
+   else if (type == constants::type::AAAA)
+      return "AAAA";
+   else if (type == constants::type::NS)
+      return "NS";
+   else if (type == constants::type::CNAME)
+      return "CNAME";
+   else if (type == constants::type::SOA)
+      return "SOA";
+   else if (type == constants::type::PTR)
+      return "PTR";
+   else if (type == constants::type::MX)
+      return "MX";
+   else
+      return "UNKNOWN"; //TODO finish else-if chain
+}
+
+// static
+std::string DnsPacket::ClassToString(uint16_t clz) {
+   if (clz == constants::clz::IN)
+      return "IN";
+   else if (clz == constants::clz::CS)
+      return "CS";
+   else if (clz == constants::clz::CH)
+      return "CH";
+   else if (clz == constants::clz::HS)
+      return "HS";
+   else
+      return "UNKNOWN";
+}
+
 void DnsPacket::PrintHeader() {
    std::cout << "DNS Packet" << std::endl;
    std::cout << "==========" << std::endl;

@@ -20,10 +20,6 @@ class DnsQuery {
    void Print() const;
    std::string ToString() const;
 
-   // Host byte-order
-   static std::string TypeToString(uint16_t type);
-   static std::string ClassToString(uint16_t clz);
-
    // Getters
    std::string name() const { return name_; }
    uint16_t type() const { return type_; }

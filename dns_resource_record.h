@@ -31,8 +31,7 @@ class DnsResourceRecord {
    // Construct a DnsQuery from the first three fields of this record
    DnsQuery ConstructQuery() const;
 
-   void Print();
-   void PrintData(int cutoff);
+   std::string ToString() const;
 
    // Getters
    std::string name() const { return name_; }

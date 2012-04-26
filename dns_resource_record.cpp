@@ -95,15 +95,15 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
 DnsResourceRecord::DnsResourceRecord(std::string name, uint16_t type,
       uint16_t clz, uint32_t ttl, uint16_t data_len, char* data)
       : name_(name), type_(type), clz_(clz), ttl_(ttl), data_len_(data_len) {
-   MALLOCCHECK((data_ = (char*) malloc((size_t) ntohs(data_len_))));
-   memcpy(data_, data, ntohs(data_len_));
+   MALLOCCHECK((data_ = (char*) malloc((size_t) ntohs(data_len))));
+   memcpy(data_, data, ntohs(data_len));
 }
 
 DnsResourceRecord::DnsResourceRecord(const DnsResourceRecord& rr)
       : name_(rr.name_), type_(rr.type_), clz_(rr.clz_), ttl_(rr.ttl_),
       data_len_(rr.data_len_) {
-   MALLOCCHECK((data_ = (char*) malloc((size_t) ntohs(data_len_))));
-   memcpy(data_, rr.data_, ntohs(data_len_));
+   MALLOCCHECK((data_ = (char*) malloc((size_t) ntohs(rr.data_len_))));
+   memcpy(data_, rr.data_, ntohs(rr.data_len_));
 }
 
 DnsResourceRecord::~DnsResourceRecord() {
@@ -135,15 +135,10 @@ bool DnsResourceRecord::operator<(const DnsResourceRecord& record) const {
    if (clz_ != record.clz_)
       return clz_ < record.clz_;
 
-   if (ttl_ != record.ttl_)
-      return ttl_ < record.ttl_;
-
-   if (data_len_ != record.data_len_)
-      return data_len_ < record.data_len_;
-
-   for (int i = 0; i < data_len_; ++i)
+   for (int i = 0; i < ntohs(data_len_); ++i) {
       if (data_[i] != record.data_[i])
          return data_[i] < record.data_[i];
+   }
 
    return false;
 }
@@ -213,24 +208,37 @@ DnsQuery DnsResourceRecord::ConstructQuery() const {
    return DnsQuery(name_, type_, clz_);
 }
 
-void DnsResourceRecord::Print() {
-   std::cout << "Resource Record:" << std::endl;
-   std::cout << "   Name: " << name_ << std::endl;
-   std::cout << "   Type: " << ntohs(type_) << std::endl;
-   std::cout << "   Class: " << ntohs(clz_) << std::endl;
-   std::cout << "   TTL: " << ntohl(ttl_) << std::endl;
-   std::cout << "   Data length: " << ntohs(data_len_) << std::endl;
-   std::cout << "   Data:  ";
-   PrintData(10);
-}
+std::string DnsResourceRecord::ToString() const {
+   std::string ret;
 
-void DnsResourceRecord::PrintData(int cutoff) {
-   int i;
-   for (i = 0; i < (cutoff < data_len_ ? cutoff : data_len_); ++i)
-      std::cout << data_[i];
+   ret.push_back('(');
+   ret.append(DnsPacket::DnsNameToString(name_));
+   ret.append(", ");
+   ret.append(DnsPacket::TypeToString(ntohs(type_)));
+   ret.append(", ");
+   ret.append(DnsPacket::ClassToString(ntohs(clz_)));
+   ret.append(", ");
+   ret.append("ttl");//ntohl(ttl_));
+   ret.append(", ");
+   ret.append("data len");
+   ret.append(", [");
 
-   if (i == cutoff)
-      std::cout << "..." << std::endl;
-   else
-      std::cout << std::endl;
+   uint16_t type = ntohs(type_);
+   if (type == constants::type::NS ||
+       type == constants::type::PTR ||
+       type == constants::type::CNAME) {
+      ret.append(data_);
+   } else if (type == constants::type::NS) {
+      ret.append("pref, ");
+      ret.append(data_ + 2);
+   } else if (type == constants::type::SOA) {
+      // TODO
+      ret.append("SOA");
+   } else {
+      ret.append(data_, ntohs(data_len_));
+   }
+
+   ret.append("])");
+
+   return ret;
 }

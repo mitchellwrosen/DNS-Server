@@ -34,7 +34,7 @@ class DnsServer : public UdpServer {
    int ReadIntoBuffer(struct sockaddr* client_addr, socklen_t* client_addr_len);
 
    // Sends a DnsQuery to an upstream server, fills in addr info (TODO i6)
-   void SendQueryUpstream(struct sockaddr* addr, socklen_t addrlen, char* ip,
+   void SendQueryUpstream(struct sockaddr* addr, socklen_t addrlen,
          DnsQuery& query);
 
    // Caches all resource records of a packet.

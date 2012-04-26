@@ -58,31 +58,31 @@ DnsCache::DnsCache() {
                              htons(constants::type::NS),
                              htons(constants::clz::IN));
 
-   DnsResourceRecord rr_a(".", htons(constants::type::NS),
+   DnsResourceRecord rr_a("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(a)+1), a);
-   DnsResourceRecord rr_b(".", htons(constants::type::NS),
+   DnsResourceRecord rr_b("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(b)+1), b);
-   DnsResourceRecord rr_c(".", htons(constants::type::NS),
+   DnsResourceRecord rr_c("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(c)+1), c);
-   DnsResourceRecord rr_d(".", htons(constants::type::NS),
+   DnsResourceRecord rr_d("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(d)+1), d);
-   DnsResourceRecord rr_e(".", htons(constants::type::NS),
+   DnsResourceRecord rr_e("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(e)+1), e);
-   DnsResourceRecord rr_f(".", htons(constants::type::NS),
+   DnsResourceRecord rr_f("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(f)+1), f);
-   DnsResourceRecord rr_g(".", htons(constants::type::NS),
+   DnsResourceRecord rr_g("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(g)+1), g);
-   DnsResourceRecord rr_h(".", htons(constants::type::NS),
+   DnsResourceRecord rr_h("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(h)+1), h);
-   DnsResourceRecord rr_i(".", htons(constants::type::NS),
+   DnsResourceRecord rr_i("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(i)+1), i);
-   DnsResourceRecord rr_j(".", htons(constants::type::NS),
+   DnsResourceRecord rr_j("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(j)+1), j);
-   DnsResourceRecord rr_k(".", htons(constants::type::NS),
+   DnsResourceRecord rr_k("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(k)+1), k);
-   DnsResourceRecord rr_l(".", htons(constants::type::NS),
+   DnsResourceRecord rr_l("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(l)+1), l);
-   DnsResourceRecord rr_m(".", htons(constants::type::NS),
+   DnsResourceRecord rr_m("", htons(constants::type::NS),
          htons(constants::clz::IN), 0, htons(strlen(m)+1), m);
 
    DnsResourceRecord rr_a_ip(a, htons(constants::type::A),
@@ -234,7 +234,7 @@ bool DnsCache::GetIterative(DnsQuery& query,
       time_t now = time(NULL);
 
       std::set<TimestampedDnsResourceRecord>::iterator it2;
-      for (it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+      for (it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
          // TODO Remove all expired records
          // Check every returned RR is not expired (ignore TTL == 0)
          if (ntohl(it2->second.ttl()) &&
@@ -243,6 +243,7 @@ bool DnsCache::GetIterative(DnsQuery& query,
             LOG << "-- NOT FOUND" << std::endl;
             return false;
          }
+      }
 
       // Push all RRs to the supplied set
       LOG << "-- FOUND" << std::endl;
@@ -288,8 +289,8 @@ void DnsCache::Insert(DnsQuery& query,
                       const DnsResourceRecord& resource_record) {
    Cache::iterator it = cache_.find(query);
    if (it == cache_.end()) {
-      LOG << "Query " << query.ToString() << " not found in cache -- inserting"
-            << std::endl;
+      LOG << "Query " << query.ToString() << " not found in cache -- inserting "
+            << resource_record.ToString() << std::endl;
       std::set<TimestampedDnsResourceRecord> timestamped_resource_records;
       timestamped_resource_records.insert(
             TimestampedDnsResourceRecord(time(NULL), resource_record));
@@ -298,7 +299,8 @@ void DnsCache::Insert(DnsQuery& query,
                   (query, timestamped_resource_records));
    } else {
       LOG << "Query " << query.ToString() <<
-            " found in cache -- adding resource record to set" << std::endl;
+            " found in cache -- adding " << resource_record.ToString() <<
+            " to set" << std::endl;
       it->second.insert(TimestampedDnsResourceRecord(
             time(NULL), resource_record));
    }

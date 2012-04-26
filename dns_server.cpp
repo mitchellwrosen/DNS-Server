@@ -120,7 +120,7 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
            ++additional_it) {
          // Check it the server provided relevant additional information
          if (!additional_it->name().compare(authority_it->data()) &&
-             additional_it->type() == ntohs(constants::type::A))
+             additional_it->type() == ntohs(constants::type::A)) // TODO i6
             break;
       }
 
@@ -138,10 +138,15 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
       }
 
       // Query upstream with relevant additional information
+      // Prepare sockaddr_in for upstream server
+      // TODO i6 compatibility
       struct sockaddr_in addr;
       socklen_t addrlen = sizeof(addr);
-      SendQueryUpstream((struct sockaddr*) &addr, addrlen,
-            additional_it->data(), query);
+      addr.sin_family = AF_INET;
+      addr.sin_port = htons(53);
+      memcpy(&addr.sin_addr, additional_it->data(), addrlen);
+
+      SendQueryUpstream((struct sockaddr*) &addr, addrlen, query);
 
       // Time out after 2 seconds and continue to the next authority
       if (Server::HasDataToRead(sock_, 2, 0)) {
@@ -160,11 +165,12 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
                // simply calling Resolve() from here, so I'll try it.
 
                // Save the response code from upstream server.
-               //*response_code = packet.rcode();
+               *response_code = packet.rcode();
                //return Resolve(query, id, response_code);
                return true;
+            } else {
+               return Resolve(query, id, response_code);
             }
-            return Resolve(query, id, response_code);
          } else {
             LOG << " -- did not match expected id " << cur_id_ << " -- ignoring."
                   << std::endl;
@@ -192,17 +198,13 @@ void DnsServer::CacheAllResourceRecords(DnsPacket& packet) {
 }
 
 void DnsServer::SendQueryUpstream(struct sockaddr* addr, socklen_t addrlen,
-      char* ip, DnsQuery& query) {
-   // Prepare sockaddr_in for upstream server
-   // TODO i6 compatibility
-   ((struct sockaddr_in*) addr)->sin_family = AF_INET;
-   ((struct sockaddr_in*) addr)->sin_port = htons(53);
-   memcpy(&((struct sockaddr_in*) addr)->sin_addr, ip, addrlen);
+      DnsQuery& query) {
 
    char* p = DnsPacket::ConstructQuery(buf_, htons(cur_id_),
          constants::opcode::Query, false, query);
 
-   LOG << "Sending query with id " << cur_id_ << " upstream." << std::endl;
+   LOG << "Sending query " << query.ToString() << " with id " << cur_id_ <<
+         " upstream." << std::endl;
    SendBufferToAddr(addr, addrlen, p - buf_);
 }
 

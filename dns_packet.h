@@ -110,6 +110,10 @@ class DnsPacket {
    // Gets the name pointed to by cur_, advances cur_ to the next field (type)
    std::string GetName();
 
+   // Host byte-order
+   static std::string TypeToString(uint16_t type);
+   static std::string ClassToString(uint16_t clz);
+
    void PrintHeader();
 
    static std::string ShortenName(std::string name);
