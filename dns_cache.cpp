@@ -24,6 +24,11 @@
 
 namespace constants = dns_packet_constants;
 
+namespace dns_cache {
+const int kCache = 0;
+const int kNegativeCache = 1;
+}
+
 DnsCache::DnsCache() {
    char a[] = "\x01\x61\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
    char b[] = "\x01\x62\x0c\x72\x6f\x6f\x74\x2d\x73\x65\x72\x76\x65\x72\x73\x03\x6e\x65\x74";
@@ -155,9 +160,42 @@ bool DnsCache::Get(DnsQuery& query,
                    std::set<DnsResourceRecord>* answer_rrs,
                    std::set<DnsResourceRecord>* authority_rrs,
                    std::set<DnsResourceRecord>* additional_rrs) {
-   // Look for exact match
-   if (GetIterative(query, answer_rrs))
+   // First and foremost, search the negative cache
+   if (GetIterative(query, authority_rrs, ncache_))
       return true;
+
+   // Look for exact match
+   if (GetIterative(query, answer_rrs, cache_)) {
+      // Fill authority section
+      GetRecursive(query.name(),
+                   ntohs(constants::type::NS),
+                   query.clz(),
+                   authority_rrs,
+                   cache_);
+
+      // If NS or MX, try to fill additional
+      uint16_t type = ntohs(query.type());
+      std::set<DnsResourceRecord>::iterator it;
+      if (type == constants::type::NS) {
+         for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
+            GetIterative(it->data(),
+                         ntohs(constants::type::A),
+                         query.clz(),
+                         additional_rrs,
+                         cache_);
+         }
+      } else if (type == constants::type::MX) {
+         for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
+            GetIterative(it->data() + 2,
+                         ntohs(constants::type::A),
+                         query.clz(),
+                         additional_rrs,
+                         cache_);
+         }
+      }
+
+      return true;
+   }
 
    std::set<DnsResourceRecord>::iterator it;
 
@@ -169,7 +207,8 @@ bool DnsCache::Get(DnsQuery& query,
       if (GetIterative(query.name(),
                        ntohs(constants::type::CNAME),
                        query.clz(),
-                       answer_rrs)) {
+                       answer_rrs,
+                       cache_)) {
          bool found = false;
 
          // We hit a CNAME - try to fill our answer with the query type
@@ -179,21 +218,24 @@ bool DnsCache::Get(DnsQuery& query,
          if (GetIterative(answer_rrs->begin()->data(),
                           query.type(),
                           query.clz(),
-                          answer_rrs))
+                          answer_rrs,
+                          cache_))
             found = true;
 
          // Try to fill out authority with NS of the CNAME
          GetRecursive(answer_rrs->begin()->data(),
                       ntohs(constants::type::NS),
                       query.clz(),
-                      authority_rrs);
+                      authority_rrs,
+                      cache_);
 
          // Try to fill out additional with A records of NS
          for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it)
             GetIterative(it->data(),
                          ntohs(constants::type::A),
                          query.clz(),
-                         additional_rrs);
+                         additional_rrs,
+                         cache_);
 
          // If we hit any A records for any CNAMEs, cache hit. Otherwise,
          // cache miss.
@@ -205,14 +247,16 @@ bool DnsCache::Get(DnsQuery& query,
    GetRecursive(query.name(),
                 ntohs(constants::type::NS),
                 query.clz(),
-                authority_rrs);
+                authority_rrs,
+                cache_);
 
    // Try to fill out additional information with A records of NS
    for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it) {
       GetIterative(it->data(),
                    ntohs(constants::type::A),
                    query.clz(),
-                   additional_rrs);
+                   additional_rrs,
+                   cache_);
    }
 
    return false;
@@ -221,16 +265,18 @@ bool DnsCache::Get(DnsQuery& query,
 bool DnsCache::GetIterative(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            std::set<DnsResourceRecord>* rrs) {
+                            std::set<DnsResourceRecord>* rrs,
+                            Cache& cache) {
    DnsQuery query(name, type, clz);
-   return GetIterative(query, rrs);
+   return GetIterative(query, rrs, cache);
 }
 
 bool DnsCache::GetIterative(DnsQuery& query,
-                            std::set<DnsResourceRecord>* rrs) {
+                            std::set<DnsResourceRecord>* rrs,
+                            Cache& cache) {
    LOG << "Looking for " << query.ToString();
-   Cache::iterator it = cache_.find(query);
-   if (it != cache_.end()) {
+   Cache::iterator it = cache.find(query);
+   if (it != cache.end()) {
       time_t now = time(NULL);
 
       std::set<TimestampedDnsResourceRecord>::iterator it2;
@@ -261,40 +307,42 @@ bool DnsCache::GetIterative(DnsQuery& query,
 void DnsCache::GetRecursive(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            std::set<DnsResourceRecord>* rrs) {
+                            std::set<DnsResourceRecord>* rrs,
+                            Cache& cache) {
    DnsQuery query(name, type, clz);
-   GetRecursive(query, rrs);
+   GetRecursive(query, rrs, cache);
 }
 
 
 void DnsCache::GetRecursive(DnsQuery& query,
-                            std::set<DnsResourceRecord>* rrs) {
-   if (GetIterative(query, rrs))
+                            std::set<DnsResourceRecord>* rrs,
+                            Cache& cache) {
+   if (GetIterative(query, rrs, cache))
       return;
 
    GetRecursive(DnsPacket::ShortenName(query.name()),
                 query.type(),
                 query.clz(),
-                rrs);
-}
-
-void DnsCache::Insert(DnsQuery& query,
-                      std::set<DnsResourceRecord>* resource_records) {
-   std::set<DnsResourceRecord>::iterator it;
-   for (it = resource_records->begin(); it != resource_records->end(); ++it)
-      Insert(query, *it);
+                rrs,
+                cache);
 }
 
 void DnsCache::Insert(DnsQuery& query,
                       const DnsResourceRecord& resource_record) {
-   Cache::iterator it = cache_.find(query);
-   if (it == cache_.end()) {
+   Cache cache;
+   if (ntohs(resource_record.type()) == constants::type::SOA)
+      cache = ncache_;
+   else
+      cache = cache_;
+
+   Cache::iterator it = cache.find(query);
+   if (it == cache.end()) {
       LOG << "Query " << query.ToString() << " not found in cache -- inserting "
             << resource_record.ToString() << std::endl;
       std::set<TimestampedDnsResourceRecord> timestamped_resource_records;
       timestamped_resource_records.insert(
             TimestampedDnsResourceRecord(time(NULL), resource_record));
-      cache_.insert(
+      cache.insert(
             std::pair<DnsQuery, std::set<TimestampedDnsResourceRecord> >
                   (query, timestamped_resource_records));
    } else {
@@ -307,6 +355,9 @@ void DnsCache::Insert(DnsQuery& query,
 }
 
 void DnsCache::Insert(const DnsResourceRecord& resource_record) {
+   if (ntohs(resource_record.type()) == constants::type::SOA)
+      LOG << "WARNING: Inserting an SOA with no Query. Generating a Query from "
+            " the Resource Record." << std::endl;
    DnsQuery query = resource_record.ConstructQuery();
    Insert(query, resource_record);
 }

@@ -5,6 +5,7 @@
 
 #include <map>
 #include <set>
+#include <string>
 
 #include "dns_query.h"
 

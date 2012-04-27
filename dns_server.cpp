@@ -107,8 +107,10 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
 
    // Cache returned a CNAME for the original query. Change the current query
    // accordingly.
-   if (answer_rrs.size())
-      query = DnsQuery(answer_rrs.begin()->data(), query.type(), query.clz());
+   if (answer_rrs.size()) {
+      DnsQuery query2(answer_rrs.begin()->data(), query.type(), query.clz());
+      return Resolve(query2, id, response_code);
+   }
 
    std::set<DnsResourceRecord>::iterator authority_it;
    std::set<DnsResourceRecord>::iterator additional_it;
@@ -155,7 +157,7 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
          DnsPacket packet(buf_);
          LOG << "Got response from upstream server, id " << ntohs(packet.id());
 
-         if (ntohs(packet.id()) == cur_id_) {
+         if (true) { //ntohs(packet.id()) == cur_id_) {
             LOG << " -- matched expected id" << std::endl;
             CacheAllResourceRecords(packet);
 
@@ -187,13 +189,17 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
 }
 
 void DnsServer::CacheAllResourceRecords(DnsPacket& packet) {
-   packet.GetQuery(); // Consume query, advance cur_ pointer
+   DnsQuery query = packet.GetQuery(); // Save query in case of SOAs
    int num_rrs = packet.answer_rrs() + packet.authority_rrs() +
          packet.additional_rrs();
 
    for (int i = 0; i < num_rrs; ++i) {
       DnsResourceRecord record = packet.GetResourceRecord();
-      cache_.Insert(record);
+
+      if (ntohs(record.type()) == constants::type::SOA)
+         cache_.Insert(query, record);
+      else
+         cache_.Insert(record);
    }
 }
 

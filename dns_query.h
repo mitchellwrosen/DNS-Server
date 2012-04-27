@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include <map>
 #include <string>
 
 class DnsPacket;
@@ -10,12 +11,15 @@ class DnsPacket;
 class DnsQuery {
   public:
    DnsQuery(DnsPacket& data);
+
+   // Requires network-order parameters
    DnsQuery(std::string name, int type, int clz);
 
    bool operator<(const DnsQuery& query) const;
 
    // "Construct" a query at |p|.
-   char* Construct(char* p) const;
+   char* Construct(std::map<std::string, uint16_t>* offset_map, char* p,
+         char* packet) const;
 
    void Print() const;
    std::string ToString() const;

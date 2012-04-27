@@ -27,6 +27,9 @@ class DnsCache {
   public:
    DnsCache();
 
+   typedef std::pair<time_t, DnsResourceRecord> TimestampedDnsResourceRecord;
+   typedef std::map<DnsQuery, std::set<TimestampedDnsResourceRecord> > Cache;
+
    // Gets the best match the cache contains. Has 3 out-parameters.
    // Constructs a DnsQuery with the given three fields. Requires network
    // byte order.
@@ -48,10 +51,12 @@ class DnsCache {
    bool GetIterative(std::string name,
                      uint16_t type,
                      uint16_t clz,
-                     std::set<DnsResourceRecord>* rrs);
+                     std::set<DnsResourceRecord>* rrs,
+                     Cache& cache);
 
    bool GetIterative(DnsQuery& query,
-                     std::set<DnsResourceRecord>* rrs);
+                     std::set<DnsResourceRecord>* rrs,
+                     Cache& cache);
 
    // Recursively queries the cache for NS records. NS record isn't hard-coded
    // into the function, but it's the only RR that makes any sense to perform
@@ -60,11 +65,12 @@ class DnsCache {
    void GetRecursive(std::string name,
                      uint16_t type,
                      uint16_t clz,
-                     std::set<DnsResourceRecord>* rrs);
+                     std::set<DnsResourceRecord>* rrs,
+                     Cache& cache);
 
    void GetRecursive(DnsQuery& query,
-                     std::set<DnsResourceRecord>* rrs);
-
+                     std::set<DnsResourceRecord>* rrs,
+                     Cache& cache);
 
    // Timestamps and insertsthe resource records into the cache with key
    // |query|.
@@ -73,12 +79,9 @@ class DnsCache {
    void Insert(DnsQuery& query, const DnsResourceRecord& resource_record);
    void Insert(const DnsResourceRecord& resource_record);
 
-   typedef std::pair<time_t, DnsResourceRecord> TimestampedDnsResourceRecord;
-   typedef std::map<DnsQuery, std::set<TimestampedDnsResourceRecord> > Cache;
-
   private:
-
    Cache cache_;
+   Cache ncache_; // Negative cache for SOAs
 };
 
 #endif   // _DNS_CACHE_H_

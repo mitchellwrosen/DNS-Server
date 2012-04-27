@@ -34,15 +34,14 @@ bool DnsQuery::operator<(const DnsQuery& query) const {
    return clz_ < query.clz_;
 }
 
-char* DnsQuery::Construct(char* p) const {
-  const char* name = name_.c_str();
-  int namelen = strlen(name)+1;
+char* DnsQuery::Construct(std::map<std::string, uint16_t>* offset_map,
+      char* p, char* packet) const {
+  p = DnsPacket::ConstructDnsName(offset_map, p, packet, name_);
 
-  memcpy(p, name, namelen);
-  memcpy(p + namelen, &type_, 2);
-  memcpy(p + namelen + 2, &clz_, 2);
+  memcpy(p, &type_, 2);
+  memcpy(p + 2, &clz_, 2);
 
-  return p + namelen + 4;
+  return p + 4;
 }
 
 void DnsQuery::Print() const {

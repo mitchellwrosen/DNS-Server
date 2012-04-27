@@ -156,18 +156,16 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       std::set<DnsResourceRecord>& authority_rrs,
       std::set<DnsResourceRecord>& additional_rrs) {
    char* p = ConstructHeader(buf, id, qr_flag, opcode, aa_flag, tc_flag,
-         rd_flag, ra_flag, rcode, 1, answer_rrs.size(), authority_rrs.size(),
-         additional_rrs.size());
+         rd_flag, ra_flag, rcode, htons(1), htons(answer_rrs.size()),
+         htons(authority_rrs.size()), htons(additional_rrs.size()));
    char* old_p = p;
    bool stop_writing = false;
 
-   // Create offset map and initialize with the offset of the query's name
+   // Create offset map
    std::map<std::string, uint16_t> offset_map;
-   offset_map.insert(
-         std::pair<std::string, uint16_t>(query.name(), (uint16_t) (p - buf)));
 
    // Write the query
-   p = query.Construct(p);
+   p = query.Construct(&offset_map, p, buf);
 
    // Write as many answers as we can
    std::set<DnsResourceRecord>::iterator it;
@@ -185,7 +183,7 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       return old_p - buf;
 
    // Write as many authorities as we can
-   for (it = authority_rrs.begin(); it != answer_rrs.end(); ++it) {
+   for (it = authority_rrs.begin(); it != authority_rrs.end(); ++it) {
       old_p = p;
       p = it->Construct(&offset_map, p, buf);
       if (p - buf >= 512) {
@@ -259,10 +257,13 @@ char* DnsPacket::ConstructDnsName(
       std::map<std::string, uint16_t>* offset_map, char* p, char* packet,
       std::string name) {
    std::map<std::string, uint16_t>::iterator it;
+   bool ptr_used = false;
 
    while (name.length()) {
       it = offset_map->find(name);
       if (it != offset_map->end()) {
+         ptr_used = true;
+
          // write the pointer
          uint16_t offset = htons(it->second | 0xc000);
          memcpy(p, &offset, 2);
@@ -282,6 +283,10 @@ char* DnsPacket::ConstructDnsName(
       // 3. shorten the current name
       name = DnsPacket::ShortenName(name);
    }
+
+   // Write null terminating byte of string
+   if (!ptr_used)
+      *p++ = 0;
 
    return p;
 }

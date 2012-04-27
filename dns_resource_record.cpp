@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <map>
+#include <string>
 
 #include "debug.h"
 
@@ -148,21 +149,24 @@ char* DnsResourceRecord::Construct(std::map<std::string, uint16_t>* offset_map,
    // Attempt to name-compress name by reading from the map
    p = DnsPacket::ConstructDnsName(offset_map, p, packet, name_);
 
-   // Write type, clz, ttl, data len
+   // Write type, clz, ttl
    memcpy(p, &type_, 2);
    memcpy(p + 2, &clz_, 2);
    memcpy(p + 4, &ttl_, 4);
-   memcpy(p + 8, &data_len_, 2);
-   p += 10;
 
+   // Point p at the beginning of data (after not-yet-written data len), and
+   // save a pointer (to which data len will be prepended)
+   p += 10;
+   char* p_copy = p;
+
+   // Write data
    if (type_ == ntohs(constants::type::NS) ||
        type_ == ntohs(constants::type::CNAME) ||
        type_ == ntohs(constants::type::PTR)) {
       p = DnsPacket::ConstructDnsName(offset_map, p, packet, data_);
    } else if (type_ == ntohs(constants::type::MX)) {
       memcpy(p, &data_, 2); // preference
-      p += 2;
-      p = DnsPacket::ConstructDnsName(offset_map, p, packet, data_ + 2);
+      p = DnsPacket::ConstructDnsName(offset_map, p + 2, packet, data_ + 2);
    } //else if (type_ == ntohs(constants::type::SOA)) {
       // TODO this bullshit
    //}
@@ -170,6 +174,10 @@ char* DnsResourceRecord::Construct(std::map<std::string, uint16_t>* offset_map,
       memcpy(p, data_, ntohs(data_len_));
       p += ntohs(data_len_);
    }
+
+   // Calculate and write data len
+   uint16_t data_len = htons((uint16_t) (p - p_copy));
+   memcpy(p_copy - 2, &data_len, 2);
 
    return p;
 }
