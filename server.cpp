@@ -11,7 +11,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "checksum.h"
 #include "debug.h"
 #include "server.h"
 #include "smartalloc.h"

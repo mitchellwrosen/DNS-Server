@@ -15,7 +15,6 @@
 #include <iostream>
 #include <vector>
 
-#include "checksum.h"
 #include "debug.h"
 #include "smartalloc.h"
 

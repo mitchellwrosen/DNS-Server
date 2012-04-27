@@ -11,6 +11,8 @@
 
 #include "debug.h"
 
+#include "smartalloc.h"
+
 #include "dns_packet.h"
 
 #define PORT "53"

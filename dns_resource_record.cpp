@@ -9,6 +9,8 @@
 
 #include "debug.h"
 
+#include "smartalloc.h"
+
 #include "dns_resource_record.h"
 #include "dns_packet.h"
 

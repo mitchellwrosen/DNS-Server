@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+#include "smartalloc.h"
+
 #include "dns_packet.h"
 #include "dns_query.h"
 

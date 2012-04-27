@@ -12,7 +12,6 @@
 
 #include <iostream>
 
-#include "checksum.h"
 #include "debug.h"
 #include "smartalloc.h"
 
