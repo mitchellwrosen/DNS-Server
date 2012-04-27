@@ -3,7 +3,6 @@ CFLAGS = -g -Wall -Werror
 OS = $(shell uname -s)
 PROC = $(shell uname -p)
 EXEC_SUFFIX=$(OS)-$(PROC)
-COMMON = checksum.c smartalloc.c
 
 ifeq ("$(OS)", "SunOS")
 	OSLIB=-L/opt/csw/lib -R/opt/csw/lib -lsocket -lnsl
@@ -21,12 +20,12 @@ else
 endif
 endif
 
-all:  dns_server-$(EXEC_SUFFIX) DnsPacketSender
+all:  dns_server-$(EXEC_SUFFIX)
 
-dns_server-$(EXEC_SUFFIX): main.cpp dns_server.cpp dns_packet.cpp dns_query.cpp dns_resource_record.cpp dns_cache.cpp udp_server.cpp server.cpp $(COMMON)
-	$(CC) $(CFLAGS) $(OSINC) $(OSLIB) $(OSDEF) -o $@ $^
+smartalloc.o: smartalloc.c
+	gcc smartalloc.c -c smartalloc.o
 
-DnsPacketSender: DnsPacketSender.cpp dns_packet.cpp dns_query.cpp dns_resource_record.cpp $(COMMON)
+dns_server-$(EXEC_SUFFIX): main.cpp dns_server.cpp dns_packet.cpp dns_query.cpp dns_resource_record.cpp dns_cache.cpp udp_server.cpp server.cpp smartalloc.o
 	$(CC) $(CFLAGS) $(OSINC) $(OSLIB) $(OSDEF) -o $@ $^
 
 handin: README
