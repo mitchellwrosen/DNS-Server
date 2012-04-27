@@ -9,6 +9,7 @@
 
 #include "debug.h"
 
+#include "checksum.h"
 #include "smartalloc.h"
 
 #include "dns_resource_record.h"
@@ -170,7 +171,7 @@ bool DnsResourceRecord::operator==(const DnsResourceRecord& record) const {
    return true;
 }
 
-char* DnsResourceRecord::Construct(std::map<std::string, uint16_t>* offset_map,
+char* DnsResourceRecord::Construct(OffsetMap* offset_map,
       char* p, char* packet) const {
    // Attempt to name-compress name by reading from the map
    p = DnsPacket::ConstructDnsName(offset_map, p, packet, name_);

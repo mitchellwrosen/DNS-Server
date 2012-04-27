@@ -16,12 +16,11 @@
 #include <vector>
 
 #include "debug.h"
+#include "checksum.h"
 #include "smartalloc.h"
 
 #include "dns_server.h"
 #include "dns_packet.h"
-#include "dns_query.h"
-#include "dns_resource_record.h"
 
 namespace constants = dns_packet_constants;
 
@@ -77,9 +76,9 @@ void DnsServer::Run() {
             Resolve(query, packet.id(), &response_code);
 
          // Respond
-         std::vector<DnsResourceRecord> answer_rrs;
-         std::vector<DnsResourceRecord> authority_rrs;
-         std::vector<DnsResourceRecord> additional_rrs;
+         RRVec answer_rrs;
+         RRVec authority_rrs;
+         RRVec additional_rrs;
 
          // Don't care about return value at this point -- we tried our best
          cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs);
@@ -93,9 +92,9 @@ void DnsServer::Run() {
 }
 
 bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
-   std::vector<DnsResourceRecord> answer_rrs;
-   std::vector<DnsResourceRecord> authority_rrs;
-   std::vector<DnsResourceRecord> additional_rrs;
+   RRVec answer_rrs;
+   RRVec authority_rrs;
+   RRVec additional_rrs;
 
    if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs))
       return true;
@@ -111,8 +110,8 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
       return Resolve(query2, id, response_code);
    }
 
-   std::vector<DnsResourceRecord>::iterator authority_it;
-   std::vector<DnsResourceRecord>::iterator additional_it;
+   RRVec::iterator authority_it;
+   RRVec::iterator additional_it;
    for (authority_it = authority_rrs.begin();
         authority_it != authority_rrs.end();
         ++authority_it) {

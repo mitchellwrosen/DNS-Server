@@ -13,14 +13,13 @@
 #include <utility>
 #include <vector>
 
+#include "checksum.h"
 #include "smartalloc.h"
 
 #include "debug.h"
 
 #include "dns_cache.h"
 #include "dns_packet.h"
-#include "dns_query.h"
-#include "dns_resource_record.h"
 
 namespace constants = dns_packet_constants;
 
@@ -149,17 +148,17 @@ DnsCache::DnsCache() {
 bool DnsCache::Get(std::string name,
                    uint16_t type,
                    uint16_t clz,
-                   std::vector<DnsResourceRecord>* answer_rrs,
-                   std::vector<DnsResourceRecord>* authority_rrs,
-                   std::vector<DnsResourceRecord>* additional_rrs) {
+                   RRVec* answer_rrs,
+                   RRVec* authority_rrs,
+                   RRVec* additional_rrs) {
    DnsQuery query(name, type, clz);
    return Get(query, answer_rrs, authority_rrs, additional_rrs);
 }
 
 bool DnsCache::Get(DnsQuery& query,
-                   std::vector<DnsResourceRecord>* answer_rrs,
-                   std::vector<DnsResourceRecord>* authority_rrs,
-                   std::vector<DnsResourceRecord>* additional_rrs) {
+                   RRVec* answer_rrs,
+                   RRVec* authority_rrs,
+                   RRVec* additional_rrs) {
    // First and foremost, search the negative cache
    if (GetIterative(query, authority_rrs, ncache_))
       return true;
@@ -175,7 +174,7 @@ bool DnsCache::Get(DnsQuery& query,
 
       // If NS or MX, try to fill additional
       uint16_t type = ntohs(query.type());
-      std::vector<DnsResourceRecord>::iterator it;
+      RRVec::iterator it;
       if (type == constants::type::NS) {
          for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
             GetIterative(it->data(),
@@ -197,7 +196,7 @@ bool DnsCache::Get(DnsQuery& query,
       return true;
    }
 
-   std::vector<DnsResourceRecord>::iterator it;
+   RRVec::iterator it;
 
    // Look for CNAME match
    if (GetIterative(query.name(),
@@ -260,21 +259,21 @@ bool DnsCache::Get(DnsQuery& query,
 bool DnsCache::GetIterative(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            std::vector<DnsResourceRecord>* rrs,
+                            RRVec* rrs,
                             Cache& cache) {
    DnsQuery query(name, type, clz);
    return GetIterative(query, rrs, cache);
 }
 
 bool DnsCache::GetIterative(DnsQuery& query,
-                            std::vector<DnsResourceRecord>* rrs,
+                            RRVec* rrs,
                             Cache& cache) {
    LOG << "Looking for " << query.ToString();
    Cache::iterator it = cache.find(query);
    if (it != cache.end()) {
       time_t now = time(NULL);
 
-      std::vector<TimestampedDnsResourceRecord>::iterator it2;
+      TimestampedRRVec::iterator it2;
       for (it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
          // ignore TTL == 0
          if (ntohl(it2->second.ttl())) {
@@ -317,7 +316,7 @@ bool DnsCache::GetIterative(DnsQuery& query,
 void DnsCache::GetRecursive(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            std::vector<DnsResourceRecord>* rrs,
+                            RRVec* rrs,
                             Cache& cache) {
    DnsQuery query(name, type, clz);
    GetRecursive(query, rrs, cache);
@@ -325,7 +324,7 @@ void DnsCache::GetRecursive(std::string name,
 
 
 void DnsCache::GetRecursive(DnsQuery& query,
-                            std::vector<DnsResourceRecord>* rrs,
+                            RRVec* rrs,
                             Cache& cache) {
    if (GetIterative(query, rrs, cache))
       return;
@@ -349,17 +348,17 @@ void DnsCache::Insert(DnsQuery& query,
    if (it == cache->end()) {
       LOG << "Query " << query.ToString() << " not found in cache -- inserting "
             << resource_record.ToString() << std::endl;
-      std::vector<TimestampedDnsResourceRecord> timestamped_resource_records;
+      TimestampedRRVec timestamped_resource_records;
       timestamped_resource_records.push_back(
-            TimestampedDnsResourceRecord(time(NULL), resource_record));
-      cache->insert(
-            std::pair<DnsQuery, std::vector<TimestampedDnsResourceRecord> >
-                  (query, timestamped_resource_records));
+            TimestampedRR(time(NULL), resource_record));
+      //cache->insert(
+      //      std::pair<DnsQuery, TimestampedRRVec >
+      //            (query, timestamped_resource_records));
    } else {
       LOG << "Query " << query.ToString() <<
             " found in cache -- adding " << resource_record.ToString() <<
             " to vector" << std::endl;
-      std::vector<TimestampedDnsResourceRecord>::iterator it2;
+      TimestampedRRVec::iterator it2;
       for (it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
          if (resource_record == it2->second) {
             LOG << " -- actually not adding (duplicate)" << std::endl;
@@ -369,7 +368,7 @@ void DnsCache::Insert(DnsQuery& query,
 
       // Only insert if we didn't find the resource record already in the vec
       if (it2 == it->second.end())
-         it->second.push_back(TimestampedDnsResourceRecord(
+         it->second.push_back(TimestampedRR(
                time(NULL), resource_record));
    }
 }

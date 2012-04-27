@@ -9,6 +9,7 @@
 
 #include "debug.h"
 
+#include "checksum.h"
 #include "smartalloc.h"
 
 #include "dns_packet.h"
@@ -154,9 +155,9 @@ char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
 int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
       uint16_t rcode, DnsQuery& query,
-      std::vector<DnsResourceRecord>& answer_rrs,
-      std::vector<DnsResourceRecord>& authority_rrs,
-      std::vector<DnsResourceRecord>& additional_rrs) {
+      RRVec& answer_rrs,
+      RRVec& authority_rrs,
+      RRVec& additional_rrs) {
    char* p = ConstructHeader(buf, id, qr_flag, opcode, aa_flag, tc_flag,
          rd_flag, ra_flag, rcode, htons(1), htons(answer_rrs.size()),
          htons(authority_rrs.size()), htons(additional_rrs.size()));
@@ -164,13 +165,13 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
    bool stop_writing = false;
 
    // Create offset map
-   std::map<std::string, uint16_t> offset_map;
+   OffsetMap offset_map;
 
    // Write the query
    p = query.Construct(&offset_map, p, buf);
 
    // Write as many answers as we can
-   std::vector<DnsResourceRecord>::iterator it;
+   RRVec::iterator it;
    for (it = answer_rrs.begin(); it != answer_rrs.end(); ++it) {
       old_p = p;
       p = it->Construct(&offset_map, p, buf);
@@ -248,17 +249,15 @@ char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
 }
 
 // static
-char* DnsPacket::ConstructDnsName(
-      std::map<std::string, uint16_t>* offset_map, char* p, char* packet,
+char* DnsPacket::ConstructDnsName(OffsetMap* offset_map, char* p, char* packet,
       char* name) {
    return ConstructDnsName(offset_map, p, packet, std::string(name));
 }
 
 // static
-char* DnsPacket::ConstructDnsName(
-      std::map<std::string, uint16_t>* offset_map, char* p, char* packet,
+char* DnsPacket::ConstructDnsName(OffsetMap* offset_map, char* p, char* packet,
       std::string name) {
-   std::map<std::string, uint16_t>::iterator it;
+   OffsetMap::iterator it;
    bool ptr_used = false;
 
    while (name.length()) {

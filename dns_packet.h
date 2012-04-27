@@ -7,9 +7,17 @@
 #include <vector>
 #include <string>
 
+#include "smartalloc.h"
 #include "dns_query.h"
+#include "dns_resource_record.h"
+#include "main.h"
 
-class DnsResourceRecord;
+typedef std::map<std::string, uint16_t, std::less<std::string>,
+      STLsmartalloc<std::pair<std::string, uint16_t> > > OffsetMap;
+
+
+typedef std::map<std::string, uint16_t, std::less<std::string>,
+      STLsmartalloc<std::pair<std::string, uint16_t> > > OffsetMap;
 
 namespace dns_packet_constants {
 namespace qr_flag {
@@ -67,6 +75,78 @@ extern const int HS;
 }
 }
 
+class DnsPacket;
+
+class DnsQuery {
+  public:
+   DnsQuery(DnsPacket& data);
+
+   // Requires network-order parameters
+   DnsQuery(std::string name, int type, int clz);
+
+   bool operator<(const DnsQuery& query) const;
+
+   // "Construct" a query at |p|.
+   char* Construct(OffsetMap* offset_map, char* p,
+         char* packet) const;
+
+   void Print() const;
+   std::string ToString() const;
+
+   // Getters
+   std::string name() const { return name_; }
+   uint16_t type() const { return type_; }
+   uint16_t clz() const { return clz_; }
+
+  private:
+   std::string name_;
+   uint16_t type_;
+   uint16_t clz_;
+};
+
+class DnsResourceRecord {
+  public:
+   DnsResourceRecord(DnsPacket& packet);
+   DnsResourceRecord(std::string name_, uint16_t type, uint16_t clz,
+         uint32_t ttl, uint16_t data_len_, char* data);
+   DnsResourceRecord(const DnsResourceRecord& rr);
+   virtual ~DnsResourceRecord();
+
+   DnsResourceRecord& operator=(const DnsResourceRecord& record);
+   bool operator<(const DnsResourceRecord& record) const;
+   bool operator==(const DnsResourceRecord& record) const;
+
+   // "Construct" a resource record onto a buffer, given the beginning of the
+   // packet (for name compression) and the current pointer
+   char* Construct(OffsetMap* offset_map, char* p,
+         char* packet) const;
+
+
+   // Construct a DnsQuery from the first three fields of this record
+   DnsQuery ConstructQuery() const;
+
+   void SubtractFromTtl(uint32_t time);
+
+   std::string ToString() const;
+
+   // Getters
+   std::string name() const { return name_; }
+   uint16_t type() const { return type_; }
+   uint16_t clz() const { return clz_; }
+   uint32_t ttl() const { return ttl_; }
+   uint16_t data_len() const { return data_len_; }
+   char* data() const { return data_; }
+
+  private:
+   std::string name_;
+   uint16_t type_;
+   uint16_t clz_;
+   uint32_t ttl_;
+   uint16_t data_len_;
+   char* data_;
+};
+typedef std::vector<DnsResourceRecord, STLsmartalloc<DnsResourceRecord> > RRVec;
+
 // A single DNS packet. A DnsPacket consists of a header and one or more
 // Records. A Record is either a Query or a ResourceRecord
 // Records.
@@ -84,9 +164,9 @@ class DnsPacket {
    static int ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
       uint16_t rcode, DnsQuery& query,
-      std::vector<DnsResourceRecord>& answer_rrs,
-      std::vector<DnsResourceRecord>& authority_rrs,
-      std::vector<DnsResourceRecord>& additional_rrs);
+      RRVec& answer_rrs,
+      RRVec& authority_rrs,
+      RRVec& additional_rrs);
 
    static char* ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
          bool rd_flag, const char* name, uint16_t type, uint16_t clz);
@@ -100,10 +180,10 @@ class DnsPacket {
          uint16_t authority_rrs, uint16_t additional_rrs);
 
    // "Construct" a <dns name> onto a buffer, possibly compressing the name.
-   static char* ConstructDnsName(std::map<std::string, uint16_t>* offset_map,
-         char* p, char* packet, char* name);
-   static char* ConstructDnsName(std::map<std::string, uint16_t>* offset_map,
-         char* p, char* packet, std::string name);
+   static char* ConstructDnsName(OffsetMap* offset_map, char* p, char* packet,
+         char* name);
+   static char* ConstructDnsName(OffsetMap* offset_map, char* p, char* packet,
+         std::string name);
 
    // "Constructs" a query onto a buffer
    char* Construct(char* p);
@@ -156,5 +236,6 @@ class DnsPacket {
    uint16_t authority_rrs_;   // host order
    uint16_t additional_rrs_;  // host order
 };
+
 
 #endif   // _DNS_PACKET_H_

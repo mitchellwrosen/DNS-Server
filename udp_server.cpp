@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "debug.h"
+#include "checksum.h"
 #include "smartalloc.h"
 #include "udp_server.h"
 

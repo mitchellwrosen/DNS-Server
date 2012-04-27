@@ -1,5 +1,5 @@
 /* Smartalloc.c       Copyright Clinton Staley 1991
- *
+ * 
  * Smartalloc provides an malloc version which checks for several possible
  * errors:
  *
@@ -139,7 +139,7 @@ track_t *removeTrackNode(void *address)
    if (track_hash[smartalloc_hash(address)]->data == address) {
       to_free = track_hash[smartalloc_hash(address)];
       track_hash[smartalloc_hash(address)] = track_hash[smartalloc_hash(address)]->next;
-   }
+   } 
    else {
       for (temp = track_hash[smartalloc_hash(address)]; temp->next != NULL && temp->next->data != address;)
          temp = temp->next;
@@ -162,7 +162,7 @@ void freechecks(track_t *check, char *file, int line)
    for (i = 0; i < check->margin; i++)
       if (check->data[check->space + i] != PATTERN ||
        check->data[-check->margin + i] != PATTERN) {
-         fprintf(stderr,
+         fprintf(stderr, 
           "Space freed in file %s at line %d has data written past bounds.\n",
           file, line);
          break;
@@ -176,7 +176,7 @@ void smartfree(void *address, char *file, int line)
 
    to_free = removeTrackNode(address);
    if (NULL == to_free) {
-      fprintf(stderr,
+      fprintf(stderr, 
        "Attempt to free non-malloced space in file %s at line %d\n",
        file, line);
       return;
@@ -202,7 +202,7 @@ void* smartrealloc(void* ptr, unsigned long newSize, int freeOnFailure,
 
    to_free = removeTrackNode(ptr);
    if (NULL == to_free) {
-      fprintf(stderr,
+      fprintf(stderr, 
        "Attempt to free non-malloced space in file %s at line %d\n",
        file, line);
       return NULL;
@@ -216,7 +216,7 @@ void* smartrealloc(void* ptr, unsigned long newSize, int freeOnFailure,
             free(to_free->data - to_free->margin);
       }
       else
-         smartalloc_track((char*)ptr, to_free->space, to_free->needs_free, MARGIN);
+         smartalloc_track(ptr, to_free->space, to_free->needs_free, MARGIN);
 
       free(to_free);
       return NULL;

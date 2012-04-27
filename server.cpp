@@ -13,6 +13,8 @@
 
 #include "debug.h"
 #include "server.h"
+
+#include "checksum.h"
 #include "smartalloc.h"
 
 

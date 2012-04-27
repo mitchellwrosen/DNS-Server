@@ -4,6 +4,7 @@
 
 #include <iostream>
 
+#include "checksum.h"
 #include "smartalloc.h"
 
 #include "dns_packet.h"
@@ -36,8 +37,7 @@ bool DnsQuery::operator<(const DnsQuery& query) const {
    return clz_ < query.clz_;
 }
 
-char* DnsQuery::Construct(std::map<std::string, uint16_t>* offset_map,
-      char* p, char* packet) const {
+char* DnsQuery::Construct(OffsetMap* offset_map, char* p, char* packet) const {
   p = DnsPacket::ConstructDnsName(offset_map, p, packet, name_);
 
   memcpy(p, &type_, 2);

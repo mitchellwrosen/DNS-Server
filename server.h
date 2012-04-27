@@ -33,6 +33,8 @@ class Server {
    //virtual void Receive() = 0;
    virtual void Run() = 0;
 
+   int sock() const { return sock_; }
+
   protected:
    int sock_;
    int backlog_;

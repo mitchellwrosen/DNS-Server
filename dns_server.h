@@ -19,7 +19,7 @@
 #include "checksum.h"
 #include "smartalloc.h"
 
-#include "dns_query.h"
+#include "dns_packet.h"
 #include "dns_cache.h"
 #include "udp_server.h"
 

@@ -13,6 +13,7 @@
 #include <iostream>
 
 #include "debug.h"
+#include "checksum.h"
 #include "smartalloc.h"
 
 #include "dns_packet.h"
@@ -46,6 +47,8 @@ void sigint_handler(int signum) {
       case SIGINT:
          // clean dynamically allocated memory
          delete server;
+
+         close(server->sock());
 
          fprintf(stdout, "Server exiting cleanly.\n");
          exit(EXIT_FAILURE);

@@ -11,6 +11,7 @@
 
 #include "debug.h"
 
+#include "checksum.h"
 #include "smartalloc.h"
 
 #include "dns_packet.h"
