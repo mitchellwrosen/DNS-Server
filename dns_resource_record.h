@@ -26,11 +26,6 @@ class DnsResourceRecord {
    char* Construct(std::map<std::string, uint16_t>* offset_map, char* p,
          char* packet) const;
 
-   // "Construct" a <dns name> onto a buffer, possibly compressing the name.
-   char* ConstructDnsName(std::map<std::string, uint16_t>* offset_map,
-         char* p, uint16_t offset, char* name) const;
-   char* ConstructDnsName(std::map<std::string, uint16_t>* offset_map,
-         char* p, uint16_t offset, std::string name) const;
 
    // Construct a DnsQuery from the first three fields of this record
    DnsQuery ConstructQuery() const;

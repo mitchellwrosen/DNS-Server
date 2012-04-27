@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include <map>
 #include <set>
 
 #include "dns_query.h"
@@ -97,8 +98,15 @@ class DnsPacket {
          bool ra_flag, uint16_t rcode, uint16_t queries, uint16_t answer_rrs,
          uint16_t authority_rrs, uint16_t additional_rrs);
 
+   // "Construct" a <dns name> onto a buffer, possibly compressing the name.
+   static char* ConstructDnsName(std::map<std::string, uint16_t>* offset_map,
+         char* p, char* packet, char* name);
+   static char* ConstructDnsName(std::map<std::string, uint16_t>* offset_map,
+         char* p, char* packet, std::string name);
+
    // "Constructs" a query onto a buffer
    char* Construct(char* p);
+
 
    friend class DnsQuery;
    friend class DnsResourceRecord;

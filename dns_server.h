@@ -48,7 +48,8 @@ class DnsServer : public UdpServer {
   private:
    DnsCache cache_;
 
-   const std::string port_;
+   const int port_;
+   const std::string port_str_;
    int cur_id_; // Use unique id for each upstream query.
 
 

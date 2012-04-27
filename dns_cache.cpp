@@ -172,8 +172,7 @@ bool DnsCache::Get(DnsQuery& query,
                        answer_rrs)) {
          bool found = false;
 
-         // We hit a CNAME - try to fill our answer with the query type,
-         // and authority with NSs.
+         // We hit a CNAME - try to fill our answer with the query type
          // If we find an A record for this CNAME, consider it a cache
          // hit. Otherwise, if we're just going to return a CNAME,
          // consider it a cache miss
@@ -183,7 +182,8 @@ bool DnsCache::Get(DnsQuery& query,
                           answer_rrs))
             found = true;
 
-         GetRecursive(it->data(),
+         // Try to fill out authority with NS of the CNAME
+         GetRecursive(answer_rrs->begin()->data(),
                       ntohs(constants::type::NS),
                       query.clz(),
                       authority_rrs);

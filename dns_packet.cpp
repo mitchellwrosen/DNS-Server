@@ -247,6 +247,45 @@ char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
    return buf + 12;
 }
 
+// static
+char* DnsPacket::ConstructDnsName(
+      std::map<std::string, uint16_t>* offset_map, char* p, char* packet,
+      char* name) {
+   return ConstructDnsName(offset_map, p, packet, std::string(name));
+}
+
+// static
+char* DnsPacket::ConstructDnsName(
+      std::map<std::string, uint16_t>* offset_map, char* p, char* packet,
+      std::string name) {
+   std::map<std::string, uint16_t>::iterator it;
+
+   while (name.length()) {
+      it = offset_map->find(name);
+      if (it != offset_map->end()) {
+         // write the pointer
+         uint16_t offset = htons(it->second | 0xc000);
+         memcpy(p, &offset, 2);
+         p += 2;
+         break;
+      }
+
+      // no match found --
+      // 1. write the first octet of the current name to the packet
+      const char* c_name = name.c_str();
+      memcpy(p, c_name, *c_name+1);
+
+      // 2. add the current name to the offset map, then advance p
+      offset_map->insert(std::pair<std::string, uint16_t>(name, p - packet));
+      p += *c_name+1;
+
+      // 3. shorten the current name
+      name = DnsPacket::ShortenName(name);
+   }
+
+   return p;
+}
+
 DnsQuery DnsPacket::GetQuery() {
    DnsQuery query(*this);
    return query;

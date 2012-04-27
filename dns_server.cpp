@@ -26,7 +26,7 @@
 
 namespace constants = dns_packet_constants;
 
-DnsServer::DnsServer() : port_("53"), cur_id_(0) {
+DnsServer::DnsServer() : port_(53), port_str_("53"), cur_id_(0) {
    // set up server hints struct
    struct addrinfo hints;
 
@@ -38,7 +38,7 @@ DnsServer::DnsServer() : port_("53"), cur_id_(0) {
 
    // init server
    LOG << "Initializing server" << std::endl;
-   Server::Init(port_, &hints);
+   Server::Init(port_str_, &hints);
    LOG << "Server initialized" << std::endl;
 }
 
@@ -83,14 +83,12 @@ void DnsServer::Run() {
          std::set<DnsResourceRecord> additional_rrs;
 
          // Don't care about return value at this point -- we tried our best
-         /*
          cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs);
          int packet_len = DnsPacket::ConstructPacket(buf_, packet.id(), true,
                packet.opcode(), false, false, packet.rd_flag(), true,
                response_code, query, answer_rrs, authority_rrs, additional_rrs);
          SendBufferToAddr((struct sockaddr*) &client_addr, client_addr_len,
                packet_len);
-         */
       }
    }
 }
@@ -145,7 +143,7 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
       struct sockaddr_in addr;
       socklen_t addrlen = sizeof(addr);
       addr.sin_family = AF_INET;
-      addr.sin_port = htons(53);
+      addr.sin_port = htons(port_);
       memcpy(&addr.sin_addr, additional_it->data(), sizeof(addr.sin_addr));
 
       SendQueryUpstream((struct sockaddr*) &addr, addrlen, query);

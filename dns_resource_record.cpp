@@ -146,7 +146,7 @@ bool DnsResourceRecord::operator<(const DnsResourceRecord& record) const {
 char* DnsResourceRecord::Construct(std::map<std::string, uint16_t>* offset_map,
       char* p, char* packet) const {
    // Attempt to name-compress name by reading from the map
-   p = ConstructDnsName(offset_map, p, p - packet, name_);
+   p = DnsPacket::ConstructDnsName(offset_map, p, packet, name_);
 
    // Write type, clz, ttl, data len
    memcpy(p, &type_, 2);
@@ -158,11 +158,11 @@ char* DnsResourceRecord::Construct(std::map<std::string, uint16_t>* offset_map,
    if (type_ == ntohs(constants::type::NS) ||
        type_ == ntohs(constants::type::CNAME) ||
        type_ == ntohs(constants::type::PTR)) {
-      p = ConstructDnsName(offset_map, p, p - packet, data_);
+      p = DnsPacket::ConstructDnsName(offset_map, p, packet, data_);
    } else if (type_ == ntohs(constants::type::MX)) {
       memcpy(p, &data_, 2); // preference
       p += 2;
-      p = ConstructDnsName(offset_map, p, p - packet, data_ + 2);
+      p = DnsPacket::ConstructDnsName(offset_map, p, packet, data_ + 2);
    } //else if (type_ == ntohs(constants::type::SOA)) {
       // TODO this bullshit
    //}
@@ -170,41 +170,6 @@ char* DnsResourceRecord::Construct(std::map<std::string, uint16_t>* offset_map,
       memcpy(p, data_, ntohs(data_len_));
       p += ntohs(data_len_);
    }
-
-   return p;
-}
-
-char* DnsResourceRecord::ConstructDnsName(
-      std::map<std::string, uint16_t>* offset_map, char* p, uint16_t offset,
-      char* name) const {
-   return ConstructDnsName(offset_map, p, offset, std::string(name));
-}
-
-char* DnsResourceRecord::ConstructDnsName(
-      std::map<std::string, uint16_t>* offset_map, char* p, uint16_t offset,
-      std::string name) const {
-   std::map<std::string, uint16_t>::iterator it;
-
-   while (name.length()) {
-      it = offset_map->find(name);
-      if (it != offset_map->end()) {
-         // write the pointer
-         uint16_t offset = htons(it->second | 0xc00);
-         memcpy(p, &offset, 2);
-         p += 2;
-         break;
-      }
-
-      // no match found -- write the first portion of the name and then shorten
-      // the name
-      const char* c_name = name.c_str();
-      memcpy(p, c_name, *c_name+1);
-      p += *c_name+1;
-      name = DnsPacket::ShortenName(name);
-   }
-
-   // Add the newly constructed name to the offset map
-   offset_map->insert(std::pair<std::string, uint16_t>(name, offset));
 
    return p;
 }
