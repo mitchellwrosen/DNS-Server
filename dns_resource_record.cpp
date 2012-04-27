@@ -56,7 +56,7 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
       const char* temp_c_str1 = temp_str1.c_str();
       const char* temp_c_str2 = temp_str2.c_str();
 
-      data_len_ = htons(strlen(temp_c_str1)+1 + strlen(temp_c_str2)+1 + 16);
+      data_len_ = htons(strlen(temp_c_str1)+1 + strlen(temp_c_str2)+1 + 20);
       MALLOCCHECK((data_ = (char*) malloc(ntohs(data_len_))));
 
       memcpy(data_,
@@ -67,6 +67,7 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
              temp_c_str2,
              strlen(temp_c_str2)+1);
 
+      // 5 ints
       memcpy(data_ + strlen(temp_c_str1)+1 + strlen(temp_c_str2)+1,
              packet.cur_,
              4);
@@ -82,6 +83,13 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
       memcpy(data_ + strlen(temp_c_str1)+1 + strlen(temp_c_str2)+1 + 12,
              packet.cur_ + 12,
              4);
+
+      memcpy(data_ + strlen(temp_c_str1)+1 + strlen(temp_c_str2)+1 + 16,
+             packet.cur_ + 16,
+             4);
+
+      // Advance cur
+      packet.cur_ += 20;
    } else {
       data_len_ = *((uint16_t*) (packet.cur_ - 2));
 
@@ -90,7 +98,6 @@ DnsResourceRecord::DnsResourceRecord(DnsPacket& packet) {
 
       packet.cur_ += ntohs(data_len_);
    }
-
 }
 
 DnsResourceRecord::DnsResourceRecord(std::string name, uint16_t type,
@@ -136,12 +143,29 @@ bool DnsResourceRecord::operator<(const DnsResourceRecord& record) const {
    if (clz_ != record.clz_)
       return clz_ < record.clz_;
 
+   if (data_len_ != record.data_len_)
+      return data_len_ < data_len_;
+
    for (int i = 0; i < ntohs(data_len_); ++i) {
       if (data_[i] != record.data_[i])
          return data_[i] < record.data_[i];
    }
 
    return false;
+}
+
+bool DnsResourceRecord::operator==(const DnsResourceRecord& record) const {
+   if (name_ == record.name_ &&
+       type_ == record.type_ &&
+       clz_ == record.clz_ &&
+       data_len_ == record.data_len_) {
+      for (int i = 0; i < ntohs(data_len_); ++i) {
+         if (data_[i] != record.data_[i])
+            return false;
+      }
+   }
+
+   return true;
 }
 
 char* DnsResourceRecord::Construct(std::map<std::string, uint16_t>* offset_map,
@@ -167,10 +191,23 @@ char* DnsResourceRecord::Construct(std::map<std::string, uint16_t>* offset_map,
    } else if (type_ == ntohs(constants::type::MX)) {
       memcpy(p, &data_, 2); // preference
       p = DnsPacket::ConstructDnsName(offset_map, p + 2, packet, data_ + 2);
-   } //else if (type_ == ntohs(constants::type::SOA)) {
-      // TODO this bullshit
-   //}
-   else {
+   } else if (type_ == ntohs(constants::type::SOA)) {
+      // Write mname
+      p = DnsPacket::ConstructDnsName(offset_map, p, packet, data_);
+
+      // Write rname
+      char* p2 = data_ + strlen(data_) + 1; // Point p2 to beginning of rname
+      p = DnsPacket::ConstructDnsName(offset_map, p, packet, p2);
+
+      // Write 5 ints
+      char* p3 = p2 + strlen(p2) + 1; // Point p3 to beginning of 4 ints
+      memcpy(p, p3, 4);
+      memcpy(p + 4, p3 + 4, 4);
+      memcpy(p + 8, p3 + 8, 4);
+      memcpy(p + 12, p3 + 12, 4);
+      memcpy(p + 16, p3 + 16, 4);
+      p += 20;
+   } else {
       memcpy(p, data_, ntohs(data_len_));
       p += ntohs(data_len_);
    }
@@ -184,6 +221,10 @@ char* DnsResourceRecord::Construct(std::map<std::string, uint16_t>* offset_map,
 
 DnsQuery DnsResourceRecord::ConstructQuery() const {
    return DnsQuery(name_, type_, clz_);
+}
+
+void DnsResourceRecord::SubtractFromTtl(uint32_t time) {
+   ttl_ = htonl(ntohl(ttl_) - time);
 }
 
 std::string DnsResourceRecord::ToString() const {

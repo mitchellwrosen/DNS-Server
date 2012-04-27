@@ -15,7 +15,7 @@
 
 #include <map>
 #include <utility>
-#include <set>
+#include <vector>
 
 #include "smartalloc.h"
 
@@ -28,7 +28,7 @@ class DnsCache {
    DnsCache();
 
    typedef std::pair<time_t, DnsResourceRecord> TimestampedDnsResourceRecord;
-   typedef std::map<DnsQuery, std::set<TimestampedDnsResourceRecord> > Cache;
+   typedef std::map<DnsQuery, std::vector<TimestampedDnsResourceRecord> > Cache;
 
    // Gets the best match the cache contains. Has 3 out-parameters.
    // Constructs a DnsQuery with the given three fields. Requires network
@@ -36,14 +36,14 @@ class DnsCache {
    bool Get(std::string name,
             uint16_t type,
             uint16_t clz,
-            std::set<DnsResourceRecord>* answer_rrs,
-            std::set<DnsResourceRecord>* authority_rrs,
-            std::set<DnsResourceRecord>* additional_rrs);
+            std::vector<DnsResourceRecord>* answer_rrs,
+            std::vector<DnsResourceRecord>* authority_rrs,
+            std::vector<DnsResourceRecord>* additional_rrs);
 
    bool Get(DnsQuery& query,
-            std::set<DnsResourceRecord>* answer_rrs,
-            std::set<DnsResourceRecord>* authority_rrs,
-            std::set<DnsResourceRecord>* additional_rrs);
+            std::vector<DnsResourceRecord>* answer_rrs,
+            std::vector<DnsResourceRecord>* authority_rrs,
+            std::vector<DnsResourceRecord>* additional_rrs);
 
    // Queries the cache for an exact match. Returns true if such a match is
    // found, false otherwise. Constructs a DnsQuery with the given fields. Has
@@ -51,11 +51,11 @@ class DnsCache {
    bool GetIterative(std::string name,
                      uint16_t type,
                      uint16_t clz,
-                     std::set<DnsResourceRecord>* rrs,
+                     std::vector<DnsResourceRecord>* rrs,
                      Cache& cache);
 
    bool GetIterative(DnsQuery& query,
-                     std::set<DnsResourceRecord>* rrs,
+                     std::vector<DnsResourceRecord>* rrs,
                      Cache& cache);
 
    // Recursively queries the cache for NS records. NS record isn't hard-coded
@@ -65,17 +65,17 @@ class DnsCache {
    void GetRecursive(std::string name,
                      uint16_t type,
                      uint16_t clz,
-                     std::set<DnsResourceRecord>* rrs,
+                     std::vector<DnsResourceRecord>* rrs,
                      Cache& cache);
 
    void GetRecursive(DnsQuery& query,
-                     std::set<DnsResourceRecord>* rrs,
+                     std::vector<DnsResourceRecord>* rrs,
                      Cache& cache);
 
    // Timestamps and insertsthe resource records into the cache with key
    // |query|.
    void Insert(DnsQuery& query,
-               std::set<DnsResourceRecord>* resource_records);
+               std::vector<DnsResourceRecord>* resource_records);
    void Insert(DnsQuery& query, const DnsResourceRecord& resource_record);
    void Insert(const DnsResourceRecord& resource_record);
 

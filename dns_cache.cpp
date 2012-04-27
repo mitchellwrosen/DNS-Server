@@ -11,7 +11,7 @@
 
 #include <map>
 #include <utility>
-#include <set>
+#include <vector>
 
 #include "smartalloc.h"
 
@@ -149,17 +149,17 @@ DnsCache::DnsCache() {
 bool DnsCache::Get(std::string name,
                    uint16_t type,
                    uint16_t clz,
-                   std::set<DnsResourceRecord>* answer_rrs,
-                   std::set<DnsResourceRecord>* authority_rrs,
-                   std::set<DnsResourceRecord>* additional_rrs) {
+                   std::vector<DnsResourceRecord>* answer_rrs,
+                   std::vector<DnsResourceRecord>* authority_rrs,
+                   std::vector<DnsResourceRecord>* additional_rrs) {
    DnsQuery query(name, type, clz);
    return Get(query, answer_rrs, authority_rrs, additional_rrs);
 }
 
 bool DnsCache::Get(DnsQuery& query,
-                   std::set<DnsResourceRecord>* answer_rrs,
-                   std::set<DnsResourceRecord>* authority_rrs,
-                   std::set<DnsResourceRecord>* additional_rrs) {
+                   std::vector<DnsResourceRecord>* answer_rrs,
+                   std::vector<DnsResourceRecord>* authority_rrs,
+                   std::vector<DnsResourceRecord>* additional_rrs) {
    // First and foremost, search the negative cache
    if (GetIterative(query, authority_rrs, ncache_))
       return true;
@@ -175,7 +175,7 @@ bool DnsCache::Get(DnsQuery& query,
 
       // If NS or MX, try to fill additional
       uint16_t type = ntohs(query.type());
-      std::set<DnsResourceRecord>::iterator it;
+      std::vector<DnsResourceRecord>::iterator it;
       if (type == constants::type::NS) {
          for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
             GetIterative(it->data(),
@@ -197,50 +197,45 @@ bool DnsCache::Get(DnsQuery& query,
       return true;
    }
 
-   std::set<DnsResourceRecord>::iterator it;
+   std::vector<DnsResourceRecord>::iterator it;
 
-   // Look for CNAME match, only if it's not one of a few specific RRs
-   uint16_t type = ntohs(query.type());
-   if (type != constants::type::NS &&
-       type != constants::type::MX &&
-       type != constants::type::CNAME) { // TODO there are more!
-      if (GetIterative(query.name(),
-                       ntohs(constants::type::CNAME),
+   // Look for CNAME match
+   if (GetIterative(query.name(),
+                    ntohs(constants::type::CNAME),
+                    query.clz(),
+                    answer_rrs,
+                    cache_)) {
+      bool found = false;
+
+      // We hit a CNAME - try to fill our answer with the query type
+      // If we find an A record for this CNAME, consider it a cache
+      // hit. Otherwise, if we're just going to return a CNAME,
+      // consider it a cache miss
+      if (GetIterative(answer_rrs->begin()->data(),
+                       query.type(),
                        query.clz(),
                        answer_rrs,
-                       cache_)) {
-         bool found = false;
+                       cache_))
+         found = true;
 
-         // We hit a CNAME - try to fill our answer with the query type
-         // If we find an A record for this CNAME, consider it a cache
-         // hit. Otherwise, if we're just going to return a CNAME,
-         // consider it a cache miss
-         if (GetIterative(answer_rrs->begin()->data(),
-                          query.type(),
-                          query.clz(),
-                          answer_rrs,
-                          cache_))
-            found = true;
+      // Try to fill out authority with NS of the CNAME
+      GetRecursive(answer_rrs->begin()->data(),
+                   ntohs(constants::type::NS),
+                   query.clz(),
+                   authority_rrs,
+                   cache_);
 
-         // Try to fill out authority with NS of the CNAME
-         GetRecursive(answer_rrs->begin()->data(),
-                      ntohs(constants::type::NS),
+      // Try to fill out additional with A records of NS
+      for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it)
+         GetIterative(it->data(),
+                      ntohs(constants::type::A),
                       query.clz(),
-                      authority_rrs,
+                      additional_rrs,
                       cache_);
 
-         // Try to fill out additional with A records of NS
-         for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it)
-            GetIterative(it->data(),
-                         ntohs(constants::type::A),
-                         query.clz(),
-                         additional_rrs,
-                         cache_);
-
-         // If we hit any A records for any CNAMEs, cache hit. Otherwise,
-         // cache miss.
-         return found;
-      }
+      // If we hit any A records for any CNAMEs, cache hit. Otherwise,
+      // cache miss.
+      return found;
    }
 
    // No record or CNAME found - recurse up looking for name servers
@@ -265,36 +260,51 @@ bool DnsCache::Get(DnsQuery& query,
 bool DnsCache::GetIterative(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            std::set<DnsResourceRecord>* rrs,
+                            std::vector<DnsResourceRecord>* rrs,
                             Cache& cache) {
    DnsQuery query(name, type, clz);
    return GetIterative(query, rrs, cache);
 }
 
 bool DnsCache::GetIterative(DnsQuery& query,
-                            std::set<DnsResourceRecord>* rrs,
+                            std::vector<DnsResourceRecord>* rrs,
                             Cache& cache) {
    LOG << "Looking for " << query.ToString();
    Cache::iterator it = cache.find(query);
    if (it != cache.end()) {
       time_t now = time(NULL);
 
-      std::set<TimestampedDnsResourceRecord>::iterator it2;
+      std::vector<TimestampedDnsResourceRecord>::iterator it2;
       for (it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-         // TODO Remove all expired records
-         // Check every returned RR is not expired (ignore TTL == 0)
-         if (ntohl(it2->second.ttl()) &&
-             now - it2->first > (time_t) ntohl(it2->second.ttl())) {
-            // TODO Remove
-            LOG << "-- NOT FOUND" << std::endl;
-            return false;
+         // ignore TTL == 0
+         if (ntohl(it2->second.ttl())) {
+            // Remove expired RRs
+            if (now - it2->first > (time_t) ntohl(it2->second.ttl())) {
+               LOG << "Erasing expired record" << std::endl;
+               it2 = it->second.erase(it2);
+               it2--;
+            }
+
+            // Not expired -- update TTL
+            else {
+               LOG << "Updating TTL: Subtracting " << now - it2->first <<
+                     std::endl;
+               it2->second.SubtractFromTtl(now - it2->first);
+               it2->first = now;
+            }
          }
       }
 
-      // Push all RRs to the supplied set
+      // If we removed them all due to expired TTLs, return false (cache miss)
+      if (!it->second.size()) {
+         LOG << "-- NOT FOUND" << std::endl;
+         return false;
+      }
+
+      // Push all RRs to the supplied vector
       LOG << "-- FOUND" << std::endl;
       for (it2 = it->second.begin(); it2 != it->second.end(); ++it2)
-         rrs->insert(it2->second);
+         rrs->push_back(it2->second);
 
       return true;
    }
@@ -307,7 +317,7 @@ bool DnsCache::GetIterative(DnsQuery& query,
 void DnsCache::GetRecursive(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            std::set<DnsResourceRecord>* rrs,
+                            std::vector<DnsResourceRecord>* rrs,
                             Cache& cache) {
    DnsQuery query(name, type, clz);
    GetRecursive(query, rrs, cache);
@@ -315,7 +325,7 @@ void DnsCache::GetRecursive(std::string name,
 
 
 void DnsCache::GetRecursive(DnsQuery& query,
-                            std::set<DnsResourceRecord>* rrs,
+                            std::vector<DnsResourceRecord>* rrs,
                             Cache& cache) {
    if (GetIterative(query, rrs, cache))
       return;
@@ -329,28 +339,38 @@ void DnsCache::GetRecursive(DnsQuery& query,
 
 void DnsCache::Insert(DnsQuery& query,
                       const DnsResourceRecord& resource_record) {
-   Cache cache;
+   Cache* cache;
    if (ntohs(resource_record.type()) == constants::type::SOA)
-      cache = ncache_;
+      cache = &ncache_;
    else
-      cache = cache_;
+      cache = &cache_;
 
-   Cache::iterator it = cache.find(query);
-   if (it == cache.end()) {
+   Cache::iterator it = cache->find(query);
+   if (it == cache->end()) {
       LOG << "Query " << query.ToString() << " not found in cache -- inserting "
             << resource_record.ToString() << std::endl;
-      std::set<TimestampedDnsResourceRecord> timestamped_resource_records;
-      timestamped_resource_records.insert(
+      std::vector<TimestampedDnsResourceRecord> timestamped_resource_records;
+      timestamped_resource_records.push_back(
             TimestampedDnsResourceRecord(time(NULL), resource_record));
-      cache.insert(
-            std::pair<DnsQuery, std::set<TimestampedDnsResourceRecord> >
+      cache->insert(
+            std::pair<DnsQuery, std::vector<TimestampedDnsResourceRecord> >
                   (query, timestamped_resource_records));
    } else {
       LOG << "Query " << query.ToString() <<
             " found in cache -- adding " << resource_record.ToString() <<
-            " to set" << std::endl;
-      it->second.insert(TimestampedDnsResourceRecord(
-            time(NULL), resource_record));
+            " to vector" << std::endl;
+      std::vector<TimestampedDnsResourceRecord>::iterator it2;
+      for (it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+         if (resource_record == it2->second) {
+            LOG << " -- actually not adding (duplicate)" << std::endl;
+            break;
+         }
+      }
+
+      // Only insert if we didn't find the resource record already in the vec
+      if (it2 == it->second.end())
+         it->second.push_back(TimestampedDnsResourceRecord(
+               time(NULL), resource_record));
    }
 }
 

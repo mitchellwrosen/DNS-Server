@@ -4,7 +4,7 @@
 
 #include <iostream>
 #include <map>
-#include <set>
+#include <vector>
 #include <utility>
 
 #include "debug.h"
@@ -152,9 +152,9 @@ char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
 int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
       uint16_t rcode, DnsQuery& query,
-      std::set<DnsResourceRecord>& answer_rrs,
-      std::set<DnsResourceRecord>& authority_rrs,
-      std::set<DnsResourceRecord>& additional_rrs) {
+      std::vector<DnsResourceRecord>& answer_rrs,
+      std::vector<DnsResourceRecord>& authority_rrs,
+      std::vector<DnsResourceRecord>& additional_rrs) {
    char* p = ConstructHeader(buf, id, qr_flag, opcode, aa_flag, tc_flag,
          rd_flag, ra_flag, rcode, htons(1), htons(answer_rrs.size()),
          htons(authority_rrs.size()), htons(additional_rrs.size()));
@@ -168,7 +168,7 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
    p = query.Construct(&offset_map, p, buf);
 
    // Write as many answers as we can
-   std::set<DnsResourceRecord>::iterator it;
+   std::vector<DnsResourceRecord>::iterator it;
    for (it = answer_rrs.begin(); it != answer_rrs.end(); ++it) {
       old_p = p;
       p = it->Construct(&offset_map, p, buf);

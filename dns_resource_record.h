@@ -18,8 +18,9 @@ class DnsResourceRecord {
    DnsResourceRecord(const DnsResourceRecord& rr);
    virtual ~DnsResourceRecord();
 
-   DnsResourceRecord& operator=(const DnsResourceRecord& query);
-   bool operator<(const DnsResourceRecord& query) const;
+   DnsResourceRecord& operator=(const DnsResourceRecord& record);
+   bool operator<(const DnsResourceRecord& record) const;
+   bool operator==(const DnsResourceRecord& record) const;
 
    // "Construct" a resource record onto a buffer, given the beginning of the
    // packet (for name compression) and the current pointer
@@ -29,6 +30,8 @@ class DnsResourceRecord {
 
    // Construct a DnsQuery from the first three fields of this record
    DnsQuery ConstructQuery() const;
+
+   void SubtractFromTtl(uint32_t time);
 
    std::string ToString() const;
 

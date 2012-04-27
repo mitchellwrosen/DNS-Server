@@ -13,7 +13,7 @@
 
 #include <algorithm>
 #include <iostream>
-#include <set>
+#include <vector>
 
 #include "checksum.h"
 #include "debug.h"
@@ -78,9 +78,9 @@ void DnsServer::Run() {
             Resolve(query, packet.id(), &response_code);
 
          // Respond
-         std::set<DnsResourceRecord> answer_rrs;
-         std::set<DnsResourceRecord> authority_rrs;
-         std::set<DnsResourceRecord> additional_rrs;
+         std::vector<DnsResourceRecord> answer_rrs;
+         std::vector<DnsResourceRecord> authority_rrs;
+         std::vector<DnsResourceRecord> additional_rrs;
 
          // Don't care about return value at this point -- we tried our best
          cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs);
@@ -94,9 +94,9 @@ void DnsServer::Run() {
 }
 
 bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
-   std::set<DnsResourceRecord> answer_rrs;
-   std::set<DnsResourceRecord> authority_rrs;
-   std::set<DnsResourceRecord> additional_rrs;
+   std::vector<DnsResourceRecord> answer_rrs;
+   std::vector<DnsResourceRecord> authority_rrs;
+   std::vector<DnsResourceRecord> additional_rrs;
 
    if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs))
       return true;
@@ -112,8 +112,8 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
       return Resolve(query2, id, response_code);
    }
 
-   std::set<DnsResourceRecord>::iterator authority_it;
-   std::set<DnsResourceRecord>::iterator additional_it;
+   std::vector<DnsResourceRecord>::iterator authority_it;
+   std::vector<DnsResourceRecord>::iterator additional_it;
    for (authority_it = authority_rrs.begin();
         authority_it != authority_rrs.end();
         ++authority_it) {
@@ -162,14 +162,9 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
             CacheAllResourceRecords(packet);
 
             if (packet.answer_rrs()) {
-               // TODO check if answer_rrs() contains |query|, or otherwise it
-               // contains just a CNAME. I think this can be accomplished by
-               // simply calling Resolve() from here, so I'll try it.
-
                // Save the response code from upstream server.
                *response_code = packet.rcode();
-               //return Resolve(query, id, response_code);
-               return true;
+               return Resolve(query, id, response_code);
             } else {
                return Resolve(query, id, response_code);
             }
