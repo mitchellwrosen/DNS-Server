@@ -8,8 +8,6 @@
 #include <string>
 
 #include "smartalloc.h"
-#include "dns_query.h"
-#include "dns_resource_record.h"
 #include "main.h"
 
 typedef std::map<std::string, uint16_t, std::less<std::string>,

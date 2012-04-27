@@ -8,7 +8,6 @@
 #include "smartalloc.h"
 
 #include "dns_packet.h"
-#include "dns_query.h"
 
 namespace constants = dns_packet_constants;
 

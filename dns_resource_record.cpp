@@ -12,7 +12,6 @@
 #include "checksum.h"
 #include "smartalloc.h"
 
-#include "dns_resource_record.h"
 #include "dns_packet.h"
 
 namespace constants = dns_packet_constants;

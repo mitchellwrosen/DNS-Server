@@ -13,8 +13,6 @@
 #include "smartalloc.h"
 
 #include "dns_packet.h"
-#include "dns_query.h"
-#include "dns_resource_record.h"
 
 namespace dns_packet_constants {
 namespace qr_flag {
