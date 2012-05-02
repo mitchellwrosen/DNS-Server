@@ -159,13 +159,11 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
             LOG << " -- matched expected id" << std::endl;
             CacheAllResourceRecords(packet);
 
-            if (packet.answer_rrs()) {
-               // Save the response code from upstream server.
+            // Save the response code from upstream server.
+            if (packet.answer_rrs())
                *response_code = packet.rcode();
-               return Resolve(query, id, response_code);
-            } else {
-               return Resolve(query, id, response_code);
-            }
+
+            return Resolve(query, id, response_code);
          } else {
             LOG << " -- did not match expected id " << cur_id_ << " -- ignoring."
                   << std::endl;
