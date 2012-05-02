@@ -23,7 +23,7 @@ endif
 all:  dns_server-$(EXEC_SUFFIX)
 
 smartalloc.o: smartalloc.c
-	gcc smartalloc.c $(CFLAGS) -c 
+	gcc smartalloc.c $(CFLAGS) -c
 
 dns_server-$(EXEC_SUFFIX): main.cpp dns_server.cpp dns_packet.cpp dns_query.cpp dns_resource_record.cpp dns_cache.cpp udp_server.cpp server.cpp smartalloc.o
 	$(CC) $(CFLAGS) $(OSINC) $(OSLIB) $(OSDEF) -o $@ $^
@@ -32,4 +32,4 @@ handin: README
 	handin bellardo p1 README smartalloc.c smartalloc.h checksum.c checksum.h trace.c Makefile
 
 clean:
-	rm -rf dns_server-* dns_server-*.dSYM DnsPacketSender *.o
+	rm -rf dns_server-* dns_server-*.dSYM *.o

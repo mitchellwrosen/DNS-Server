@@ -8,7 +8,6 @@
 #include <string>
 
 #include "smartalloc.h"
-#include "main.h"
 
 typedef std::map<std::string, uint16_t, std::less<std::string>,
       STLsmartalloc<std::pair<std::string, uint16_t> > > OffsetMap;
