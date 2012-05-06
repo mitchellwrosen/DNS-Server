@@ -16,6 +16,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <stack>
+#include <vector>
+
 #include "checksum.h"
 #include "smartalloc.h"
 
@@ -28,6 +31,42 @@ class DnsServer : public UdpServer {
    DnsServer();
    virtual ~DnsServer();
 
+   typedef struct QueryInfo {
+      QueryInfo(DnsQuery& query, RRVec& authority_rrs, RRVec& additional_rrs);
+
+      DnsQuery query_;
+      RRVec authority_rrs_;
+      RRVec additional_rrs_;
+   } QueryInfo;
+
+   typedef std::stack<QueryInfo, STLsmartalloc<QueryInfo> > QueryInfoStack;
+
+   typedef struct ClientInfo {
+      ClientInfo(struct sockaddr client_addr, socklen_t client_addr_len,
+            uint16_t id, DnsQuery& query, RRVec& authority_rrs,
+            RRVec& additional_rrs);
+
+      struct sockaddr client_addr_;
+      socklen_t client_addr_len_;
+      uint16_t id_;   // network order
+      time_t timeout_; // host order
+      QueryInfoStack query_info_stack_;
+
+      // Compare ids
+      bool operator==(const uint16_t id) const;
+
+      // Compare ClientInfos by timeout, reverse. This is so a low timeout
+      // (i.e. ending soon) will put the ClientInfo at the top of the heap.
+      bool operator<(const struct ClientInfo& client_info) const;
+   } ClientInfo;
+
+   typedef std::vector<ClientInfo, STLsmartalloc<ClientInfo> > ClientInfoVec;
+
+   // Update the timeout of the specified ClientInfo (by id) to NOW + 2 seconds.
+   // Also sort the vec, so that the lowest timeout is on top.
+   // Return true if the update was successful (it always should be).
+   bool UpdateTimeout(uint16_t id);
+
    void Run();
    bool Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code);
 
@@ -39,21 +78,22 @@ class DnsServer : public UdpServer {
 
    // Caches all resource records of a packet.
    void CacheAllResourceRecords(DnsPacket& packet);
+   void CacheAllResourceRecords(DnsPacket& packet, DnsQuery& query);
 
    // Sends buf_ to the specified address.
    void SendBufferToAddr(struct sockaddr* addr, socklen_t addrlen, int datalen);
 
-  protected:
-
   private:
    DnsCache cache_;
 
-   const int port_;
-   const std::string port_str_;
-   int cur_id_; // Use unique id for each upstream query.
-
+   ClientInfoVec client_info_vec_;
+   TimeoutQueue timeout_queue_;
 
    char buf_[ETH_DATA_LEN];
+
+   const int port_;
+   const std::string port_str_;
+
 };
 
 #endif   // _DNS_SERVER_H_

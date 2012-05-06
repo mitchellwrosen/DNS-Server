@@ -43,9 +43,259 @@ DnsServer::DnsServer() : port_(53), port_str_("53"), cur_id_(0) {
 DnsServer::~DnsServer() {
 }
 
+DnsServer::QueryInfo(DnsQuery& query,
+                     RRVec& authority_rrs,
+                     RRVec& additional_rrs)
+      : query_(query),
+        authority_rrs_(authority_rrs),
+        additional_rrs_(additional_rrs) {
+}
+
+DnsServer::ClientInfo(struct sockaddr client_addr, socklen_t client_addr_len,
+      uint16_t id, DnsQuery& query, RRVec& authority_rrs, RRVec& additional_rrs)
+      : client_addr_(client_addr), client_addr_len_(client_addr_len), id_(id) {
+   query_info_stack_.push(QueryInfo(query, authority_rrs, additional_rrs));
+}
+
+bool DnsServer::ClientInfo::operator==(const uint16_t id) const {
+   return id_ == id;
+}
+
+bool DnsServer::ClientInfo::operator<(const ClientInfo& client_info) const {
+   return timeout_ > client_info.timeout_;
+}
+
+bool DnsServer::UpdateTimeout(uint16_t id) {
+   ClientInfoVec::iterator it =
+         std::find(client_info_vec_.begin(), client_info_vec_.end(), id);
+
+   // Replace old timeout, if it exists
+   if (it != client_info_vec_.end()) {
+      it->timeout = time(NULL) + 2;
+
+      // Sort into heap
+      std::make_heap(client_info_vec_.begin(), client_info_vec_.end());
+
+      return true;
+   }
+
+   return false;
+}
+
 void DnsServer::Run() {
    struct sockaddr_storage client_addr;
    socklen_t client_addr_len = sizeof(struct sockaddr_storage);
+   uint16_t id;
+
+   // Main event loop
+   while (1) {
+      // 100 ms wait
+      if (Server::HasDataToRead(sock_, 0, 100)) {
+         ReadIntoBuffer((struct sockaddr*) &client_addr, &client_addr_len);
+         DnsPacket packet(buf_);
+
+         DnsQuery query = packet.GetQuery();
+
+         if (packet.qr_flag()) {
+            CacheAllResourceRecords(packet, query);
+
+            id = packet.id();
+            if (packet.answer_rrs())
+               ;
+               // queryinfo struct .pop() if not only element
+               // save response code if only element
+         } else {
+         }
+
+         // Assume that the top QueryInfo of the current ClientInfo is
+         // out-of-date and be refreshed. (This is not the case when this is
+         // there is no ClientInfo for this client yet (first query)).
+         //bool refresh_rrs = true;
+
+         ClientInfoVec::iterator it = std::find(client_info_vec_.begin();
+                                                client_info_vec_.end();
+                                                packet.id());
+         // Special case -- no ClientInfo for this client yet (first query)
+         if (it == client_info_vec_.end()) {
+            //refresh_rrs = false;
+
+            LOG << "First time query - attempting to respond with cache"
+            RRVec answer_rrs;
+            RRVec authority_rrs;
+            RRVec additional_rrs;
+
+            // If cache hit or iterative-request, respond
+            if (cache_.Get(query, &answer_rrs, &authority_rrs,
+                  &additional_rrs) || !packet.rd_flag()) {
+               int packet_len = DnsPacket::ConstructPacket(buf_, packet.id(),
+                     true, packet.opcode(), false, false, packet.rd_flag(),
+                     true, response_code, query, answer_rrs, authority_rrs,
+                     additional_rrs);
+
+               // TODO change the client addr
+               SendBufferToAddr((struct sockaddr*) &client_addr,
+                                client_addr_len,
+                                packet_len);
+
+               // Go back to listening for packets
+               continue;
+            }
+
+            // Cache miss and recursive-request. Initialize ClientInfo.
+            LOG << "First time query after cache miss -- creating ClientInfo";
+                  << std::endl;
+
+            ClientInfo client_info(client_addr, client_addr_len, packet.id(),
+                  query, authority_rrs, additional_rrs);
+
+            // Push client info to vec
+            client_info_vec_.push_back(client_info);
+
+            // Update timeout, which sorts the vec
+            if (!UpdateTimeout(packet.id())) {
+               LOG << "ERROR: id " << packet.id() <<
+                     " not found in client info vec" << std::endl;
+               exit(EXIT_FAILURE);
+            }
+         }
+
+         ClientInfo& cur_client_info = *it;
+         QueryInfo& cur_query_info = cur_client_info.query_info_stack.front();
+
+         RRVec answer_rrs;
+         RRVec& authority_rrs = cur_query_info.authority_rrs;
+         RRVec& additional_rrs = cur_query_info.additional_rrs;
+
+         // Cache hit -- this will be the original query, because if there were
+         // answers to another query (such as an A record of a NS we needed),
+         // they would have been cached and then the QueryInfo struct popped.
+         // The only QueryInfo struct *not* popped is the original query.
+         if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs)) {
+            // Make sure the above comment is accurate with a sanity check
+            if (cur_client_info.query_info_stack.size() != 1) {
+               LOG << "About to send a response to client for a query other "
+                     "than the original. Something's wrong. Abort." <<
+                     std::endl;
+               exit(EXIT_FAILURE);
+            }
+
+            int packet_len = DnsPacket::ConstructPacket(buf_, packet.id(),
+                  true, packet.opcode(), false, false, packet.rd_flag(),
+                  true, response_code, query, answer_rrs, authority_rrs,
+                  additional_rrs);
+
+            // TODO change the client addr
+            SendBufferToAddr((struct sockaddr*) &client_addr,
+                             client_addr_len,
+                             packet_len);
+
+            // Go back to listening for packets
+            continue;
+         }
+
+         // If we got a CNAME from cache, put it on the query info stack
+         if (answer_rrs.size()) {
+            QueryInfo query_info;
+            query_info.query = DnsQuery(answer_rrs.begin()->data(),
+                                        query.type(),
+                                        query.clz());
+            query_info.authority_rrs = authority_rrs;
+            query_info.additional_rrs = additional_rrs;
+
+            cur_client_info.query_info_stack.push(query_info);
+
+            // Update timeout, which sorts the vec
+            if (!UpdateTimeout(packet.id())) {
+               LOG << "ERROR: id " << packet.id() <<
+                     " not found in client info vec" << std::endl;
+               exit(EXIT_FAILURE);
+            }
+         }
+
+         // Grab the top authority from the top QueryInfo and check to see if
+         // its A record is in the additionals
+         QueryInfo& cur_query_info =
+               cur_client_info.query_info_stack.front();
+         DnsResourceRecord& cur_auth_rr =
+               cur_query_info.authority_rrs.front();
+         DnsResourceRecord* addl_rr;
+         RRVec& cur_addl_rrs = cur_query_info.additional_rrs;
+         RRVec::iterator it;
+         for (it = cur_addl_rrs.begin(); it != cur_addl_rrs.end(); ++it) {
+            if (!it->name().compare(cur_auth_rr.data()) &&
+                it->type() == ntohs(constants::type::A)) { // todo i6
+               break;
+            }
+         }
+
+         // If we didn't find such an A rec, do a cache query to get the
+         // right authority and A records. This query may end up with missing
+         // additional information as well, in which case my program blows
+         // up.
+         if (it == cur_addl_rrs.end()) {
+            DnsQuery query2(cur_auth_rr.data(),
+                            htons(constants::type::A),
+                            htons(constants::clz::IN));
+
+            RRVec temp_answer_rrs;
+            RRVec temp_authority_rrs;
+            RRVec temp_additional_rrs;
+
+            if (cache_.Get(query2, &answer_rrs, &authority_rrs,
+                  &additional_rrs)) {
+               LOG << "Broken cache." << std::endl;
+               //exit(EXIT_FAILURE);
+            }
+
+            QueryInfo query_info;
+            query_info.query = query2;
+            query_info.authority_rrs = temp_authority_rrs;
+            query_info.additional_rrs = temp_additional_rrs;
+
+            cur_client_info.query_info_stack.push(query_info);
+
+            // Update timeout, which sorts the vec
+            if (!UpdateTimeout(packet.id())) {
+               LOG << "ERROR: id " << packet.id() <<
+                     " not found in client info vec" << std::endl;
+               exit(EXIT_FAILURE);
+            }
+
+            // Grab the top authority from the top QueryInfo and check to see if
+            // its A record is in the additionals. If it's not at this point,
+            // we're completely fucked.
+            QueryInfo& cur_query_info =
+                  cur_client_info.query_info_stack.front();
+            DnsResourceRecord& cur_auth_rr =
+                  cur_query_info.authority_rrs.front();
+            RRVec& cur_addl_rrs = cur_query_info.additional_rrs;
+            RRVec::iterator it;
+            for (it = cur_addl_rrs.begin(); it != cur_addl_rrs.end(); ++it) {
+               if (!it->name().compare(cur_auth_rr.data()) &&
+                   it->type() == ntohs(constants::type::A)) { // todo i6
+                  break;
+               }
+            }
+
+            if (it == cur_addl_rrs.end())
+               LOG << "No A record found. That's really bad news." << std::endl;
+            else
+               addl_rr = &(*it);
+         } else {
+            addl_rr = &(*it);
+         }
+
+         struct sockaddr_in addr;
+         socklen_t addrlen = sizeof(addr);
+         addr.sin_family = AF_INET;
+         addr.sin_port = htons(port_);
+         memcpy(&addr.sin_addr, addl_rr->data(), sizeof(addr.sin_addr));
+
+         SendQueryUpstream((struct sockaddr*) &addr, addrlen, query);
+      }
+   }
+
+
 
    // Main event loop
    while (Server::HasDataToRead(sock_)) {
@@ -165,8 +415,8 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
 
             return Resolve(query, id, response_code);
          } else {
-            LOG << " -- did not match expected id " << cur_id_ << " -- ignoring."
-                  << std::endl;
+            LOG << " -- did not match expected id " << cur_id_ <<
+                  " -- ignoring." << std::endl;
          }
       }
 
@@ -181,6 +431,10 @@ bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
 
 void DnsServer::CacheAllResourceRecords(DnsPacket& packet) {
    DnsQuery query = packet.GetQuery(); // Save query in case of SOAs
+   CacheAllResourceRecords(packet, query);
+}
+
+void DnsServer::CacheAllResourceRecords(DnsPacket& packet, DnsQuery& query) {
    int num_rrs = packet.answer_rrs() + packet.authority_rrs() +
          packet.additional_rrs();
 

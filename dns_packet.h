@@ -142,6 +142,7 @@ class DnsResourceRecord {
    uint16_t data_len_;
    char* data_;
 };
+
 typedef std::vector<DnsResourceRecord, STLsmartalloc<DnsResourceRecord> > RRVec;
 
 // A single DNS packet. A DnsPacket consists of a header and one or more
