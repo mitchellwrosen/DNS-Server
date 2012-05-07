@@ -19,8 +19,6 @@
 #include "dns_packet.h"
 #include "dns_server.h"
 
-DnsServer* server;
-
 void sigint_handler(int signum);
 
 int main(int argc, char** argv) {
@@ -36,19 +34,17 @@ int main(int argc, char** argv) {
    sigact.sa_handler = sigint_handler;
    SYSCALL(sigaction(SIGINT, &sigact, NULL), "sigaction");
 
-   server = new DnsServer();
-   server->Run();
-
-   delete server;
+   DnsServer server;
+   server.Run();
 }
 
 void sigint_handler(int signum) {
    switch (signum) {
       case SIGINT:
          // clean dynamically allocated memory
-         delete server;
+         //delete server;
 
-         close(server->sock());
+         //close(server->sock());
 
          fprintf(stdout, "Server exiting cleanly.\n");
          exit(EXIT_FAILURE);

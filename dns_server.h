@@ -31,22 +31,24 @@ class DnsServer : public UdpServer {
    DnsServer();
    virtual ~DnsServer();
 
-   typedef struct QueryInfo {
+   struct QueryInfo {
+      //QueryInfo(DnsQuery query, RRVec& authority_rrs, RRVec& additional_rrs);
       QueryInfo(DnsQuery& query, RRVec& authority_rrs, RRVec& additional_rrs);
 
       DnsQuery query_;
       RRVec authority_rrs_;
       RRVec additional_rrs_;
-   } QueryInfo;
+   };
 
-   typedef std::stack<QueryInfo, STLsmartalloc<QueryInfo> > QueryInfoStack;
+   typedef std::vector<QueryInfo, STLsmartalloc<QueryInfo> > QueryInfoVec;
+   typedef std::stack<QueryInfo, QueryInfoVec> QueryInfoStack;
 
-   typedef struct ClientInfo {
-      ClientInfo(struct sockaddr client_addr, socklen_t client_addr_len,
+   struct ClientInfo {
+      ClientInfo(struct sockaddr_storage client_addr, socklen_t client_addr_len,
             uint16_t id, DnsQuery& query, RRVec& authority_rrs,
             RRVec& additional_rrs);
 
-      struct sockaddr client_addr_;
+      struct sockaddr_storage client_addr_;
       socklen_t client_addr_len_;
       uint16_t id_;   // network order
       time_t timeout_; // host order
@@ -58,7 +60,7 @@ class DnsServer : public UdpServer {
       // Compare ClientInfos by timeout, reverse. This is so a low timeout
       // (i.e. ending soon) will put the ClientInfo at the top of the heap.
       bool operator<(const struct ClientInfo& client_info) const;
-   } ClientInfo;
+   };
 
    typedef std::vector<ClientInfo, STLsmartalloc<ClientInfo> > ClientInfoVec;
 
@@ -72,9 +74,13 @@ class DnsServer : public UdpServer {
 
    int ReadIntoBuffer(struct sockaddr* client_addr, socklen_t* client_addr_len);
 
+   // Sends the top query of a ClientInfo upstream, after possible pushing
+   // more queries to resolve (such as A records of NS)
+   void SendQueryUpstream(ClientInfo* client_info);
+
    // Sends a DnsQuery to an upstream server, fills in addr info (TODO i6)
    void SendQueryUpstream(struct sockaddr* addr, socklen_t addrlen,
-         DnsQuery& query);
+         DnsQuery& query, uint16_t id);
 
    // Caches all resource records of a packet.
    void CacheAllResourceRecords(DnsPacket& packet);
@@ -84,16 +90,14 @@ class DnsServer : public UdpServer {
    void SendBufferToAddr(struct sockaddr* addr, socklen_t addrlen, int datalen);
 
   private:
-   DnsCache cache_;
+   DnsCache* cache_;
 
    ClientInfoVec client_info_vec_;
-   TimeoutQueue timeout_queue_;
 
    char buf_[ETH_DATA_LEN];
 
    const int port_;
    const std::string port_str_;
-
 };
 
 #endif   // _DNS_SERVER_H_

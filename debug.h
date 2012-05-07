@@ -27,7 +27,7 @@
    }\
 }
 
-#define LOGGING false
+#define LOGGING true
 
 #define LOG if (LOGGING) std::cout
 

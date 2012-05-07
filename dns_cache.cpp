@@ -351,9 +351,9 @@ void DnsCache::Insert(DnsQuery& query,
       TimestampedRRVec timestamped_resource_records;
       timestamped_resource_records.push_back(
             TimestampedRR(time(NULL), resource_record));
-      //cache->insert(
-      //      std::pair<DnsQuery, TimestampedRRVec >
-      //            (query, timestamped_resource_records));
+      cache->insert(
+            std::pair<DnsQuery, TimestampedRRVec >
+                  (query, timestamped_resource_records));
    } else {
       LOG << "Query " << query.ToString() <<
             " found in cache -- adding " << resource_record.ToString() <<
