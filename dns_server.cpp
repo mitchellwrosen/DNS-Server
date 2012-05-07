@@ -93,6 +93,21 @@ bool DnsServer::UpdateTimeout(uint16_t id) {
    return false;
 }
 
+bool DnsServer::RemoveClient(uint16_t id) {
+   return RemoveClient(std::find(client_info_vec_.begin(),
+                                 client_info_vec_.end(),
+                                 id));
+}
+
+bool DnsServer::RemoveClient(ClientInfoVec::iterator it) {
+   if (it != client_info_vec_.end()) {
+      client_info_vec_.erase(it);
+      return true;
+   }
+
+   return false;
+}
+
 void DnsServer::Run() {
    struct sockaddr_storage client_addr;
    socklen_t client_addr_len = sizeof(struct sockaddr_storage);
@@ -135,6 +150,12 @@ void DnsServer::Run() {
 
          if (packet.qr_flag())
             CacheAllResourceRecords(packet, query);
+
+         if (packet.rcode() == constants::response_code::Refused) {
+            // TODO respond to client
+            RemoveClient(packet.id());
+            continue;
+         }
 
          // Assume that the top QueryInfo of the current ClientInfo is
          // out-of-date and be refreshed. (This is not the case when this is
@@ -243,7 +264,7 @@ void DnsServer::Run() {
                      packet_len);
 
                // Delete the current client info
-               client_info_vec_.erase(it);
+               RemoveClient(it);
 
                // Go back to listening for packets
                continue;
@@ -326,7 +347,6 @@ void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
          exit(EXIT_FAILURE);
       }
 
-
       SendQueryUpstream(client_info);
       return;
    }
@@ -341,142 +361,6 @@ void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
    SendQueryUpstream((struct sockaddr*) &addr, addrlen, query_info->query_,
          client_info->id_);
 }
-
-/*
-   // Main event loop
-   while (Server::HasDataToRead(sock_)) {
-      LOG << "Has data to read" << std::endl;
-
-      ReadIntoBuffer((struct sockaddr*) &client_addr, &client_addr_len);
-
-      DnsPacket packet(buf_);
-      packet.PrintHeader();
-
-      // Check QR bit
-      if (packet.qr_flag()) {
-         // Response
-         // Cache all RRs
-         // This will never be the case for milestone 1
-         LOG << "ERROR: RESPONSE RECEIVED (shouldnt happen in milestone 1)" <<
-               std::endl;
-      }
-      else {
-         // New query
-         DnsQuery query = packet.GetQuery();
-         LOG << "Query: " << query.ToString() << std::endl;
-
-         uint16_t response_code = constants::response_code::NoError;
-
-         // If recursive, get answer into cache
-         if (packet.rd_flag())
-            Resolve(query, packet.id(), &response_code);
-
-         // Respond
-         RRList answer_rrs;
-         RRList authority_rrs;
-         RRList additional_rrs;
-
-         // Don't care about return value at this point -- we tried our best
-         cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs);
-         int packet_len = DnsPacket::ConstructPacket(buf_, packet.id(), true,
-               packet.opcode(), false, false, packet.rd_flag(), true,
-               response_code, query, answer_rrs, authority_rrs, additional_rrs);
-         SendBufferToAddr((struct sockaddr*) &client_addr, client_addr_len,
-               packet_len);
-      }
-   }
-}
-*/
-
-/*
-bool DnsServer::Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code) {
-   RRList answer_rrs;
-   RRList authority_rrs;
-   RRList additional_rrs;
-
-   if (cache_.Get(query, &answer_rrs, &authority_rrs, &additional_rrs))
-      return true;
-
-   LOG << "Cache miss - returned " << answer_rrs.size() << " answers, " <<
-         authority_rrs.size() << " auth, " << additional_rrs.size() <<
-         " additional." << std::endl;
-
-   // Cache returned a CNAME for the original query. Change the current query
-   // accordingly.
-   if (answer_rrs.size()) {
-      DnsQuery query2(answer_rrs.begin()->data(), query.type(), query.clz());
-      return Resolve(query2, id, response_code);
-   }
-
-   RRList::iterator authority_it;
-   RRList::iterator additional_it;
-   for (authority_it = authority_rrs.begin();
-        authority_it != authority_rrs.end();
-        ++authority_it) {
-      for (additional_it = additional_rrs.begin();
-           additional_it != additional_rrs.end();
-           ++additional_it) {
-         // Check it the server provided relevant additional information
-         if (!additional_it->name().compare(authority_it->data()) &&
-             additional_it->type() == ntohs(constants::type::A)) // TODO i6
-            break;
-      }
-
-      // Server didn't provide relevant additional information
-      if (additional_it == additional_rrs.end()) {
-         // If we successfully resolve it ourself, re-try the original query
-         DnsQuery query2(authority_it->data(), htons(constants::type::A),
-               htons(constants::clz::IN));
-         if (Resolve(query2, id, response_code))
-            return Resolve(query, id, response_code);
-
-         // Otherwise, continue on to the next authority record
-         else
-            continue;
-      }
-
-      // Query upstream with relevant additional information
-      // Prepare sockaddr_in for upstream server
-      // TODO i6 compatibility
-      struct sockaddr_in addr;
-      socklen_t addrlen = sizeof(addr);
-      addr.sin_family = AF_INET;
-      addr.sin_port = htons(port_);
-      memcpy(&addr.sin_addr, additional_it->data(), sizeof(addr.sin_addr));
-
-      SendQueryUpstream((struct sockaddr*) &addr, addrlen, query);
-
-      // Time out after 2 seconds and continue to the next authority
-      if (Server::HasDataToRead(sock_, 2, 0)) {
-         ReadIntoBuffer((struct sockaddr*) &addr, &addrlen);
-
-         DnsPacket packet(buf_);
-         LOG << "Got response from upstream server, id " << ntohs(packet.id());
-
-         if (true) { //ntohs(packet.id()) == cur_id_) {
-            LOG << " -- matched expected id" << std::endl;
-            CacheAllResourceRecords(packet);
-
-            // Save the response code from upstream server.
-            if (packet.answer_rrs())
-               *response_code = packet.rcode();
-
-            return Resolve(query, id, response_code);
-         } else {
-            LOG << " -- did not match expected id " << cur_id_ <<
-                  " -- ignoring." << std::endl;
-         }
-      }
-
-      LOG << "Continuing to next authority after timeout" << std::endl;
-      cur_id_++;
-   } // Authority RR loop
-
-   // Couldn't resolve query
-   LOG << "Couldn't resolve query for " << query.name() << std::endl;
-   return false;
-}
-*/
 
 void DnsServer::CacheAllResourceRecords(DnsPacket& packet) {
    DnsQuery query = packet.GetQuery(); // Save query in case of SOAs

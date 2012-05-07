@@ -151,7 +151,7 @@ std::string DnsPacket::GetName() {
 char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
       bool rd_flag, const char* name, uint16_t type, uint16_t clz) {
    char *p = ConstructHeader(buf, id, constants::qr_flag::Query, opcode,
-         false, false, rd_flag, false, 0, ntohs(1), 0, 0, 0);
+         false, false, rd_flag, false, 0);
    int name_len = strlen(name);
    memcpy(p, name, name_len + 1);
    memcpy(p + name_len + 1, &type, sizeof(uint16_t));
@@ -166,9 +166,9 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       RRList& answer_rrs,
       RRList& authority_rrs,
       RRList& additional_rrs) {
+   Header* header = (struct Header*) buf;
    char* p = ConstructHeader(buf, id, qr_flag, opcode, aa_flag, tc_flag,
-         rd_flag, ra_flag, rcode, htons(1), htons(answer_rrs.size()),
-         htons(authority_rrs.size()), htons(additional_rrs.size()));
+         rd_flag, ra_flag, rcode);
    char* old_p = p;
    bool stop_writing = false;
 
@@ -177,6 +177,10 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
 
    // Write the query
    p = query.Construct(&offset_map, p, buf);
+
+   uint16_t answers_written = 0;
+   uint16_t authorities_written = 0;
+   uint16_t additionals_written = 0;
 
    // Write as many answers as we can
    RRList::iterator it;
@@ -187,6 +191,8 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
          stop_writing = true;
          break;
       }
+
+      answers_written++;
    }
 
    // Check to see if we went over 512
@@ -201,6 +207,8 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
          stop_writing = true;
          break;
       }
+
+      authorities_written++;
    }
 
    // Check to see if we went over 512
@@ -215,11 +223,18 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
          stop_writing = true;
          break;
       }
+
+      additionals_written++;
    }
 
    // Check to see if we went over 512
    if (stop_writing)
       return old_p - buf;
+
+   // Set the count header fields
+   header->answer_rrs = htons(answers_written);
+   header->authority_rrs = htons(authorities_written);
+   header->additional_rrs = htons(additionals_written);
 
    return p - buf;
 }
@@ -232,12 +247,11 @@ char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
 
 char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
-      uint16_t rcode, uint16_t queries, uint16_t answer_rrs,
-      uint16_t authority_rrs, uint16_t additional_rrs) {
-   memcpy(buf, &id, sizeof(uint16_t));
+      uint16_t rcode) {
+   Header* header = (struct Header*) buf;
 
-   //uint16_t flags = ConstructFlags(qr_flag, opcode, aa_flag, tc_flag, rd_flag,
-   //      ra_flag, rcode);
+   header->id = id;
+
    uint16_t flags = rcode; // last bits match up
    if (qr_flag) flags |= 0x8000;
    flags |= (opcode << 11);
@@ -247,13 +261,13 @@ char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
    if (ra_flag) flags |= 0x0080;
    flags = htons(flags);
 
-   memcpy(buf + 2, &flags, sizeof(uint16_t));
-   memcpy(buf + 4, &queries, sizeof(uint16_t));
-   memcpy(buf + 6, &answer_rrs, sizeof(uint16_t));
-   memcpy(buf + 8, &authority_rrs, sizeof(uint16_t));
-   memcpy(buf + 10, &additional_rrs, sizeof(uint16_t));
+   header->flags = flags;
+   header->queries = ntohs(1);
+   header->answer_rrs = 0;
+   header->authority_rrs = 0;
+   header->additional_rrs = 0;
 
-   return buf + 12;
+   return buf + sizeof(Header);
 }
 
 // static

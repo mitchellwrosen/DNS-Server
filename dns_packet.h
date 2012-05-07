@@ -152,6 +152,15 @@ class DnsPacket {
   public:
    DnsPacket(char* data);
 
+   struct Header {
+      uint16_t id;
+      uint16_t flags;
+      uint16_t queries;
+      uint16_t answer_rrs;
+      uint16_t authority_rrs;
+      uint16_t additional_rrs;
+   } __attribute__((packed));
+
    // Dns name format to string format
    static std::string DnsNameToString(std::string name);
 
@@ -172,10 +181,13 @@ class DnsPacket {
    static char* ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
          bool rd_flag, DnsQuery& query);
 
+   // "Construct" a header onto a buffer, defaults to 1 query and 0 answers,
+   // authorities, and additionals (these are set in ConstructPacket, because
+   // not all such records passed in will necesarrily be written to the 512 byte
+   // packet)
    static char* ConstructHeader(char* buf, uint16_t id, bool qr_flag,
          uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag,
-         bool ra_flag, uint16_t rcode, uint16_t queries, uint16_t answer_rrs,
-         uint16_t authority_rrs, uint16_t additional_rrs);
+         bool ra_flag, uint16_t rcode);
 
    // "Construct" a <dns name> onto a buffer, possibly compressing the name.
    static char* ConstructDnsName(OffsetMap* offset_map, char* p, char* packet,
@@ -185,7 +197,6 @@ class DnsPacket {
 
    // "Constructs" a query onto a buffer
    char* Construct(char* p);
-
 
    friend class DnsQuery;
    friend class DnsResourceRecord;

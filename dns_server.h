@@ -67,6 +67,9 @@ class DnsServer : public UdpServer {
    // Return true if the update was successful (it always should be).
    bool UpdateTimeout(uint16_t id);
 
+   bool RemoveClient(uint16_t id);
+   bool RemoveClient(ClientInfoVec::iterator it);
+
    void Run();
    bool Resolve(DnsQuery& query, uint16_t id, uint16_t* response_code);
 
