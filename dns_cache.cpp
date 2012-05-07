@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <list>
 #include <map>
 #include <utility>
 #include <vector>
@@ -148,17 +149,17 @@ DnsCache::DnsCache() {
 bool DnsCache::Get(std::string name,
                    uint16_t type,
                    uint16_t clz,
-                   RRVec* answer_rrs,
-                   RRVec* authority_rrs,
-                   RRVec* additional_rrs) {
+                   RRList* answer_rrs,
+                   RRList* authority_rrs,
+                   RRList* additional_rrs) {
    DnsQuery query(name, type, clz);
    return Get(query, answer_rrs, authority_rrs, additional_rrs);
 }
 
 bool DnsCache::Get(DnsQuery& query,
-                   RRVec* answer_rrs,
-                   RRVec* authority_rrs,
-                   RRVec* additional_rrs) {
+                   RRList* answer_rrs,
+                   RRList* authority_rrs,
+                   RRList* additional_rrs) {
    // First and foremost, search the negative cache
    if (GetIterative(query, authority_rrs, ncache_))
       return true;
@@ -174,7 +175,7 @@ bool DnsCache::Get(DnsQuery& query,
 
       // If NS or MX, try to fill additional
       uint16_t type = ntohs(query.type());
-      RRVec::iterator it;
+      RRList::iterator it;
       if (type == constants::type::NS) {
          for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
             GetIterative(it->data(),
@@ -196,7 +197,7 @@ bool DnsCache::Get(DnsQuery& query,
       return true;
    }
 
-   RRVec::iterator it;
+   RRList::iterator it;
 
    // Look for CNAME match
    if (GetIterative(query.name(),
@@ -206,31 +207,55 @@ bool DnsCache::Get(DnsQuery& query,
                     cache_)) {
       bool found = false;
 
-      // We hit a CNAME - try to fill our answer with the query type
-      // If we find an A record for this CNAME, consider it a cache
-      // hit. Otherwise, if we're just going to return a CNAME,
-      // consider it a cache miss
-      if (GetIterative(answer_rrs->begin()->data(),
-                       query.type(),
-                       query.clz(),
-                       answer_rrs,
-                       cache_))
-         found = true;
+      // Follow CNAME chains, break on query.type() found, or no more CNAMEs
+      while (1) {
+         if (GetIterative(answer_rrs->back().data(),
+                          query.type(),
+                          query.clz(),
+                          answer_rrs,
+                          cache_)) {
+            found = true;
+            break;
+         }
 
-      // Try to fill out authority with NS of the CNAME
-      GetRecursive(answer_rrs->begin()->data(),
-                   ntohs(constants::type::NS),
-                   query.clz(),
-                   authority_rrs,
-                   cache_);
+         if (!GetIterative(answer_rrs->back().data(),
+                           ntohs(constants::type::CNAME),
+                           query.clz(),
+                           answer_rrs,
+                           cache_)) {
+            break;
+         }
+      }
+
+      // If no A record was found, report back to the server only the last CNAME
+      if (!found) {
+         while (answer_rrs->size() > 1)
+            answer_rrs->pop_front();
+
+         // Try to fill out authority with NS of the last CNAME
+         GetRecursive(answer_rrs->back().data(),
+                      ntohs(constants::type::NS),
+                      query.clz(),
+                      authority_rrs,
+                      cache_);
+      } else {
+         // Try to fill out authority with NS of the answer
+         GetRecursive(answer_rrs->back().name(),
+                      ntohs(constants::type::NS),
+                      query.clz(),
+                      authority_rrs,
+                      cache_);
+      }
 
       // Try to fill out additional with A records of NS
-      for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it)
+      for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it) {
          GetIterative(it->data(),
                       ntohs(constants::type::A),
                       query.clz(),
                       additional_rrs,
                       cache_);
+         // TODO i6?
+      }
 
       // If we hit any A records for any CNAMEs, cache hit. Otherwise,
       // cache miss.
@@ -259,14 +284,14 @@ bool DnsCache::Get(DnsQuery& query,
 bool DnsCache::GetIterative(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            RRVec* rrs,
+                            RRList* rrs,
                             Cache& cache) {
    DnsQuery query(name, type, clz);
    return GetIterative(query, rrs, cache);
 }
 
 bool DnsCache::GetIterative(DnsQuery& query,
-                            RRVec* rrs,
+                            RRList* rrs,
                             Cache& cache) {
    LOG << "Looking for " << query.ToString();
    Cache::iterator it = cache.find(query);
@@ -286,8 +311,8 @@ bool DnsCache::GetIterative(DnsQuery& query,
 
             // Not expired -- update TTL
             else {
-               LOG << "Updating TTL: Subtracting " << now - it2->first <<
-                     std::endl;
+               //LOG << "Updating TTL: Subtracting " << now - it2->first <<
+               //      std::endl;
                it2->second.SubtractFromTtl(now - it2->first);
                it2->first = now;
             }
@@ -316,7 +341,7 @@ bool DnsCache::GetIterative(DnsQuery& query,
 void DnsCache::GetRecursive(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            RRVec* rrs,
+                            RRList* rrs,
                             Cache& cache) {
    DnsQuery query(name, type, clz);
    GetRecursive(query, rrs, cache);
@@ -324,7 +349,7 @@ void DnsCache::GetRecursive(std::string name,
 
 
 void DnsCache::GetRecursive(DnsQuery& query,
-                            RRVec* rrs,
+                            RRList* rrs,
                             Cache& cache) {
    if (GetIterative(query, rrs, cache))
       return;

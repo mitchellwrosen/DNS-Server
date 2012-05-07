@@ -16,8 +16,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <stack>
-#include <vector>
+#include <list>
 
 #include "checksum.h"
 #include "smartalloc.h"
@@ -32,27 +31,26 @@ class DnsServer : public UdpServer {
    virtual ~DnsServer();
 
    struct QueryInfo {
-      //QueryInfo(DnsQuery query, RRVec& authority_rrs, RRVec& additional_rrs);
-      QueryInfo(DnsQuery& query, RRVec& authority_rrs, RRVec& additional_rrs);
+      //QueryInfo(DnsQuery query, RRList& authority_rrs, RRList& additional_rrs);
+      QueryInfo(DnsQuery& query, RRList& authority_rrs, RRList& additional_rrs);
 
       DnsQuery query_;
-      RRVec authority_rrs_;
-      RRVec additional_rrs_;
+      RRList authority_rrs_;
+      RRList additional_rrs_;
    };
 
-   typedef std::vector<QueryInfo, STLsmartalloc<QueryInfo> > QueryInfoVec;
-   typedef std::stack<QueryInfo, QueryInfoVec> QueryInfoStack;
+   typedef std::list<QueryInfo, STLsmartalloc<QueryInfo> > QueryInfoList;
 
    struct ClientInfo {
       ClientInfo(struct sockaddr_storage client_addr, socklen_t client_addr_len,
-            uint16_t id, DnsQuery& query, RRVec& authority_rrs,
-            RRVec& additional_rrs);
+            uint16_t id, DnsQuery& query, RRList& authority_rrs,
+            RRList& additional_rrs);
 
       struct sockaddr_storage client_addr_;
       socklen_t client_addr_len_;
       uint16_t id_;   // network order
       time_t timeout_; // host order
-      QueryInfoStack query_info_stack_;
+      QueryInfoList query_info_list_;
 
       // Compare ids
       bool operator==(const uint16_t id) const;
@@ -65,7 +63,7 @@ class DnsServer : public UdpServer {
    typedef std::vector<ClientInfo, STLsmartalloc<ClientInfo> > ClientInfoVec;
 
    // Update the timeout of the specified ClientInfo (by id) to NOW + 2 seconds.
-   // Also sort the vec, so that the lowest timeout is on top.
+   // Also sort the list, so that the lowest timeout is on top.
    // Return true if the update was successful (it always should be).
    bool UpdateTimeout(uint16_t id);
 

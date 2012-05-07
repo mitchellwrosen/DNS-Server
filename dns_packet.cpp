@@ -4,7 +4,7 @@
 
 #include <iostream>
 #include <map>
-#include <vector>
+#include <list>
 #include <utility>
 
 #include "debug.h"
@@ -153,9 +153,9 @@ char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
 int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
       uint16_t rcode, DnsQuery& query,
-      RRVec& answer_rrs,
-      RRVec& authority_rrs,
-      RRVec& additional_rrs) {
+      RRList& answer_rrs,
+      RRList& authority_rrs,
+      RRList& additional_rrs) {
    char* p = ConstructHeader(buf, id, qr_flag, opcode, aa_flag, tc_flag,
          rd_flag, ra_flag, rcode, htons(1), htons(answer_rrs.size()),
          htons(authority_rrs.size()), htons(additional_rrs.size()));
@@ -169,7 +169,7 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
    p = query.Construct(&offset_map, p, buf);
 
    // Write as many answers as we can
-   RRVec::iterator it;
+   RRList::iterator it;
    for (it = answer_rrs.begin(); it != answer_rrs.end(); ++it) {
       old_p = p;
       p = it->Construct(&offset_map, p, buf);
@@ -230,7 +230,7 @@ char* DnsPacket::ConstructHeader(char* buf, uint16_t id, bool qr_flag,
    //      ra_flag, rcode);
    uint16_t flags = rcode; // last bits match up
    if (qr_flag) flags |= 0x8000;
-   flags &= (opcode << 11);
+   flags |= (opcode << 11);
    if (aa_flag) flags |= 0x0400;
    if (tc_flag) flags |= 0x0200;
    if (rd_flag) flags |= 0x0100;

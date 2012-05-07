@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #include <map>
-#include <vector>
+#include <list>
 #include <string>
 
 #include "smartalloc.h"
@@ -143,7 +143,7 @@ class DnsResourceRecord {
    char* data_;
 };
 
-typedef std::vector<DnsResourceRecord, STLsmartalloc<DnsResourceRecord> > RRVec;
+typedef std::list<DnsResourceRecord, STLsmartalloc<DnsResourceRecord> > RRList;
 
 // A single DNS packet. A DnsPacket consists of a header and one or more
 // Records. A Record is either a Query or a ResourceRecord
@@ -162,9 +162,9 @@ class DnsPacket {
    static int ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
       uint16_t rcode, DnsQuery& query,
-      RRVec& answer_rrs,
-      RRVec& authority_rrs,
-      RRVec& additional_rrs);
+      RRList& answer_rrs,
+      RRList& authority_rrs,
+      RRList& additional_rrs);
 
    static char* ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
          bool rd_flag, const char* name, uint16_t type, uint16_t clz);

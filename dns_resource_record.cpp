@@ -131,7 +131,7 @@ DnsResourceRecord& DnsResourceRecord::operator=(const DnsResourceRecord& rr) {
    data_len_ = rr.data_len_;
 
    MALLOCCHECK((data_ = (char*) malloc((size_t) data_len_)));
-   memcpy(data_, rr.data_, data_len_);
+   memmove(data_, rr.data_, data_len_);
    return *this;
 }
 
