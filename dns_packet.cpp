@@ -124,8 +124,18 @@ std::string DnsPacket::GetName() {
 
       // p is now pointing at a number. append that many chars to name, plus
       // one for the number itself
-      name.append(p, *p + 1);
-      p += *p + 1;
+      int num_chars = *p+1;
+      for (int i = 0; i < num_chars; ++i) {
+         if (isalpha(*p))
+            name.push_back(tolower(*p));
+         else
+            name.push_back(*p);
+
+         p++;
+      }
+
+      //name.append(p, *p + 1);
+      //p += *p + 1;
    }
 
    // If a pointer was used to resolve the name, cur_ was already set.

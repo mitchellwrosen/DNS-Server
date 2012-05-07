@@ -294,6 +294,9 @@ bool DnsCache::GetIterative(DnsQuery& query,
                             RRList* rrs,
                             Cache& cache) {
    LOG << "Looking for " << query.ToString();
+   if (&cache == &ncache_)
+      LOG << " in negative cache";
+
    Cache::iterator it = cache.find(query);
    if (it != cache.end()) {
       time_t now = time(NULL);
@@ -321,7 +324,7 @@ bool DnsCache::GetIterative(DnsQuery& query,
 
       // If we removed them all due to expired TTLs, return false (cache miss)
       if (!it->second.size()) {
-         LOG << "-- NOT FOUND" << std::endl;
+         LOG << " -- NOT FOUND" << std::endl;
          return false;
       }
 

@@ -200,15 +200,21 @@ void DnsServer::Run() {
                cur_client_info->query_info_list_;
 
             // If this was a response, and there are answers to a query that
-            // wasn't the original, pop it query
-            if (packet.qr_flag() &&
-                packet.answer_rrs() &&
-                cur_query_info_list.size() > 1) {
-               LOG << "Intermediate query '" <<
-                     cur_query_info_list.back().query_.ToString() <<
-                     "' resolved. Popping from current QueryInfoList" <<
-                     std::endl;
-               cur_query_info_list.pop_back();
+            // wasn't the original, pop its query
+            if (packet.qr_flag() && cur_query_info_list.size() > 1) {
+               QueryInfo& cur_query_info = cur_query_info_list.back();
+               RRList temp_answer_rrs;
+
+               if (cache_->Get(cur_query_info.query_,
+                               &temp_answer_rrs,                    // junk
+                               &cur_query_info.authority_rrs_,      // junk
+                               &cur_query_info.additional_rrs_)) {  // junk
+                  LOG << "Intermediate query '" <<
+                        cur_query_info_list.back().query_.ToString() <<
+                        "' resolved. Popping from current QueryInfoList" <<
+                        std::endl;
+                  cur_query_info_list.pop_back();
+               }
             }
 
             QueryInfo& cur_query_info = cur_query_info_list.back();
@@ -252,7 +258,9 @@ void DnsServer::Run() {
                                 query.type(),
                                 query.clz());
 
-            LOG << "Pushing CNAME onto current QueryInfoList" << std::endl;
+            LOG << "Pushing " << temp_query.ToString() <<
+                  " onto current QueryInfoList" << std::endl;
+
             cur_client_info->query_info_list_.push_back(
                   QueryInfo(temp_query,
                             cur_query_info.authority_rrs_,
@@ -301,11 +309,12 @@ void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
 
       if (cache_->Get(query2, &temp_answer_rrs, &temp_authority_rrs,
             &temp_additional_rrs)) {
-         LOG << "Broken cache." << std::endl;
-         exit(EXIT_FAILURE);
+         LOG << "BROKEN CACHE." << std::endl;
+         //exit(EXIT_FAILURE);
       }
 
-      LOG << "Pushing A record of NS onto current QueryInfoList" << std::endl;
+      LOG << "Pushing " << query2.ToString() << " onto current QueryInfoList"
+            << std::endl;
       client_info->query_info_list_.push_back(QueryInfo(query2,
                                                        temp_authority_rrs,
                                                        temp_additional_rrs));
