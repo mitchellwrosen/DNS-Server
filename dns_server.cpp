@@ -30,13 +30,12 @@ DnsServer::DnsServer() : port_(53), port_str_("53") {
 
    LOG << "Setting up hints struct" << std::endl;
    memset(&hints, 0, sizeof(struct addrinfo));
-   hints.ai_family = AF_UNSPEC;
+   hints.ai_family = AF_INET6;
    hints.ai_socktype = SOCK_DGRAM;
    hints.ai_flags = AI_PASSIVE;
 
    // alloc cache
    cache_ = new DnsCache();
-
 
    // init server
    LOG << "Initializing server" << std::endl;
@@ -56,14 +55,12 @@ DnsServer::QueryInfo::QueryInfo(DnsQuery& query,
         additional_rrs_(additional_rrs) {
 }
 
-DnsServer::ClientInfo::ClientInfo(struct sockaddr_storage client_addr,
-                                  socklen_t client_addr_len,
+DnsServer::ClientInfo::ClientInfo(struct sockaddr_in6 client_addr,
                                   uint16_t id,
                                   DnsQuery& query,
                                   RRList& authority_rrs,
                                   RRList& additional_rrs)
       : client_addr_(client_addr),
-        client_addr_len_(client_addr_len),
         id_(id) {
    query_info_list_.push_back(QueryInfo(query, authority_rrs, additional_rrs));
 }
@@ -109,8 +106,8 @@ bool DnsServer::RemoveClient(ClientInfoVec::iterator it) {
 }
 
 void DnsServer::Run() {
-   struct sockaddr_storage client_addr;
-   socklen_t client_addr_len = sizeof(struct sockaddr_storage);
+   struct sockaddr_in6 client_addr;
+   socklen_t client_addr_len;
 
    // Main event loop
    while (1) {
@@ -182,9 +179,8 @@ void DnsServer::Run() {
                      true, packet.rcode(), query, answer_rrs,
                      authority_rrs, additional_rrs);
 
-               // TODO change the client addr
                SendBufferToAddr((struct sockaddr*) &client_addr,
-                                client_addr_len,
+                                sizeof(struct sockaddr_in6),
                                 packet_len);
 
                // Go back to listening for packets
@@ -196,12 +192,12 @@ void DnsServer::Run() {
                   << std::endl;
 
             // Push client info to list
-            client_info_vec_.push_back(ClientInfo(client_addr,
-                                                  client_addr_len,
-                                                  packet.id(),
-                                                  query,
-                                                  authority_rrs,
-                                                  additional_rrs));
+            client_info_vec_.push_back(
+                  ClientInfo(client_addr,
+                             packet.id(),
+                             query,
+                             authority_rrs,
+                             additional_rrs));
 
             // Save a pointer to the client just added
             cur_client_info = &client_info_vec_.back();
@@ -260,7 +256,7 @@ void DnsServer::Run() {
 
                SendBufferToAddr(
                      (struct sockaddr*) &cur_client_info->client_addr_,
-                     cur_client_info->client_addr_len_,
+                     sizeof(struct sockaddr_in6),
                      packet_len);
 
                // Delete the current client info
@@ -301,28 +297,54 @@ void DnsServer::Run() {
    }
 }
 
-void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
-   // Grab the top authority from the top QueryInfo and check to see if
-   // its A record is in the additionals
-   QueryInfo* query_info = &client_info->query_info_list_.back();
-   DnsResourceRecord& auth_rr = query_info->authority_rrs_.front();
-   RRList& addl_rrs = query_info->additional_rrs_;
+RRList::iterator DnsServer::FindNameserverIp(DnsResourceRecord& auth_rr,
+                                             RRList& addl_rrs,
+                                             uint16_t type) {
    RRList::iterator it;
+
    for (it = addl_rrs.begin(); it != addl_rrs.end(); ++it) {
       if (!it->name().compare(auth_rr.data()) &&
-          it->type() == ntohs(constants::type::A)) { // todo i6
+          it->type() == type) {
          break;
       }
    }
 
-   // If we didn't find such an A rec, do a cache query to get the
-   // right authority and A records. This query may end up with missing
-   // additional information as well, in which case we recurse. (This will
-   // terminate at root servers, worst case).
+   // Fall back to v4, if v6 miss
+   if (it == addl_rrs.end() && type == htons(constants::type::AAAA)) {
+      for (it = addl_rrs.begin(); it != addl_rrs.end(); ++it) {
+         if (!it->name().compare(auth_rr.data()) &&
+             it->type() == htons(constants::type::A)) {
+            break;
+         }
+      }
+   }
+
+   return it;
+}
+
+void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
+   bool v4 = IN6_IS_ADDR_V4MAPPED(&client_info->client_addr_);
+   uint16_t type;
+
+   if (v4)
+      type = htons(constants::type::A);
+   else
+      type = htons(constants::type::AAAA);
+
+   // Grab the top authority from the top QueryInfo and check to see if
+   // its A/AAAA record is in the additionals
+   QueryInfo* query_info = &client_info->query_info_list_.back();
+   DnsResourceRecord& auth_rr = query_info->authority_rrs_.front();
+   RRList& addl_rrs = query_info->additional_rrs_;
+
+   RRList::iterator it = FindNameserverIp(auth_rr, addl_rrs, v4);
+
+   // If we didn't find such an A/AAAA rec, do a cache query to get the
+   // right authority and A/AAAA records.
+   // This query may end up with missing additional information as well, in
+   // which case we recurse. (This will terminate at root servers, worst case).
    if (it == addl_rrs.end()) {
-      DnsQuery query2(auth_rr.data(),
-                      htons(constants::type::A),
-                      htons(constants::clz::IN));
+      DnsQuery query2(auth_rr.data(), type, htons(constants::clz::IN));
 
       RRList temp_answer_rrs;
       RRList temp_authority_rrs;
@@ -352,14 +374,25 @@ void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
    }
 
    // TODO i6
-   struct sockaddr_in addr;
-   socklen_t addrlen = sizeof(addr);
-   addr.sin_family = AF_INET;
-   addr.sin_port = htons(port_);
-   memcpy(&addr.sin_addr, it->data(), sizeof(addr.sin_addr));
+   struct sockaddr_in6 addr;
+   addr.sin6_family = AF_INET6;
+   addr.sin6_port = htons(port_);
+   addr.sin6_flowinfo = 0; // what?
+   addr.sin6_scope_id = 0; // what?
 
-   SendQueryUpstream((struct sockaddr*) &addr, addrlen, query_info->query_,
-         client_info->id_);
+   if (v4) {
+      memcpy(&addr.sin6_addr,
+             "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF",
+             12);
+      memcpy(((char*) &addr.sin6_addr) + 12,
+             it->data(),
+             sizeof(struct in_addr));
+   } else {
+      memcpy(&addr.sin6_addr, it->data(), sizeof(struct in6_addr));
+   }
+
+   SendQueryUpstream((struct sockaddr*) &addr, sizeof(struct sockaddr_in6),
+         query_info->query_, client_info->id_);
 }
 
 void DnsServer::CacheAllResourceRecords(DnsPacket& packet) {

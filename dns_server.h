@@ -31,7 +31,6 @@ class DnsServer : public UdpServer {
    virtual ~DnsServer();
 
    struct QueryInfo {
-      //QueryInfo(DnsQuery query, RRList& authority_rrs, RRList& additional_rrs);
       QueryInfo(DnsQuery& query, RRList& authority_rrs, RRList& additional_rrs);
 
       DnsQuery query_;
@@ -42,12 +41,10 @@ class DnsServer : public UdpServer {
    typedef std::list<QueryInfo, STLsmartalloc<QueryInfo> > QueryInfoList;
 
    struct ClientInfo {
-      ClientInfo(struct sockaddr_storage client_addr, socklen_t client_addr_len,
-            uint16_t id, DnsQuery& query, RRList& authority_rrs,
-            RRList& additional_rrs);
+      ClientInfo(struct sockaddr_in6 client_addr, uint16_t id, DnsQuery& query,
+            RRList& authority_rrs, RRList& additional_rrs);
 
-      struct sockaddr_storage client_addr_;
-      socklen_t client_addr_len_;
+      struct sockaddr_in6 client_addr_;
       uint16_t id_;   // network order
       time_t timeout_; // host order
       QueryInfoList query_info_list_;
@@ -66,6 +63,10 @@ class DnsServer : public UdpServer {
    // Also sort the list, so that the lowest timeout is on top.
    // Return true if the update was successful (it always should be).
    bool UpdateTimeout(uint16_t id);
+
+   RRList::iterator FindNameserverIp(DnsResourceRecord& auth_rr,
+                                     RRList& addl_rrs,
+                                     uint16_t type);
 
    bool RemoveClient(uint16_t id);
    bool RemoveClient(ClientInfoVec::iterator it);
