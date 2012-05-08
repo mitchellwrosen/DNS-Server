@@ -380,7 +380,7 @@ void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
    addr.sin6_flowinfo = 0; // what?
    addr.sin6_scope_id = 0; // what?
 
-   if (v4) {
+   if (it->type() == htons(constants::type::A)) {
       memcpy(&addr.sin6_addr,
              "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF",
              12);
