@@ -323,7 +323,7 @@ RRList::iterator DnsServer::FindNameserverIp(DnsResourceRecord& auth_rr,
 }
 
 void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
-   bool v4 = IN6_IS_ADDR_V4MAPPED(&client_info->client_addr_);
+   bool v4 = IN6_IS_ADDR_V4MAPPED(&client_info->client_addr_.sin6_addr);
    uint16_t type;
 
    if (v4)
@@ -337,7 +337,7 @@ void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
    DnsResourceRecord& auth_rr = query_info->authority_rrs_.front();
    RRList& addl_rrs = query_info->additional_rrs_;
 
-   RRList::iterator it = FindNameserverIp(auth_rr, addl_rrs, v4);
+   RRList::iterator it = FindNameserverIp(auth_rr, addl_rrs, type);
 
    // If we didn't find such an A/AAAA rec, do a cache query to get the
    // right authority and A/AAAA records.

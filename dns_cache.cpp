@@ -295,7 +295,7 @@ bool DnsCache::Get(DnsQuery& query,
                    cache_);
 
       GetIterative(it->data(),
-                   ntohs(constants::type::A),
+                   ntohs(constants::type::AAAA),
                    query.clz(),
                    additional_rrs,
                    cache_);
