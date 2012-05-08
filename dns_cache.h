@@ -38,14 +38,19 @@ class DnsCache {
    bool Get(std::string name,
             uint16_t type,
             uint16_t clz,
-            RRList* answer_rrs,
-            RRList* authority_rrs,
-            RRList* additional_rrs);
+            RRVec* answer_rrs,
+            RRVec* authority_rrs,
+            RRVec* additional_rrs);
 
    bool Get(DnsQuery& query,
-            RRList* answer_rrs,
-            RRList* authority_rrs,
-            RRList* additional_rrs);
+            RRVec* answer_rrs,
+            RRVec* authority_rrs,
+            RRVec* additional_rrs);
+
+   bool Get2(DnsQuery& query,
+            RRVec* answer_rrs,
+            RRVec* authority_rrs,
+            RRVec* additional_rrs);
 
    // Queries the cache for an exact match. Returns true if such a match is
    // found, false otherwise. Constructs a DnsQuery with the given fields. Has
@@ -53,11 +58,11 @@ class DnsCache {
    bool GetIterative(std::string name,
                      uint16_t type,
                      uint16_t clz,
-                     RRList* rrs,
+                     RRVec* rrs,
                      Cache& cache);
 
    bool GetIterative(DnsQuery& query,
-                     RRList* rrs,
+                     RRVec* rrs,
                      Cache& cache);
 
    // Recursively queries the cache for NS records. NS record isn't hard-coded
@@ -67,17 +72,17 @@ class DnsCache {
    void GetRecursive(std::string name,
                      uint16_t type,
                      uint16_t clz,
-                     RRList* rrs,
+                     RRVec* rrs,
                      Cache& cache);
 
    void GetRecursive(DnsQuery& query,
-                     RRList* rrs,
+                     RRVec* rrs,
                      Cache& cache);
 
    // Timestamps and insertsthe resource records into the cache with key
    // |query|.
    void Insert(DnsQuery& query,
-               RRList* resource_records);
+               RRVec* resource_records);
    void Insert(DnsQuery& query, const DnsResourceRecord& resource_record);
    void Insert(const DnsResourceRecord& resource_record);
 

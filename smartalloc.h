@@ -68,6 +68,14 @@ void smartalloc_track(char *data, unsigned long space, unsigned char needs_free,
 #ifdef __cplusplus
 
 #include <new>
+#include <vector>
+#include <string>
+#include <map>
+#include <list>
+
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#include <unordered_map>
+#endif
 
 inline void *operator new(size_t size, char *file, int line, char pat) { return smartalloc(size, file, line, pat); }
 inline void *operator new[](size_t size, char *file, int line, char pat) { return smartalloc(size, file, line, pat); }
@@ -171,6 +179,32 @@ inline bool operator!=(const STLsmartalloc<T>&, const STLsmartalloc<T>&)
 
 // #define SMA(x) STLsmartalloc<x,__FILE__,__LINE__> 
 #define SMA(x) STLsmartalloc<x> 
+
+namespace SMA {
+   typedef std::basic_string<char, std::char_traits<char>,
+           STLsmartalloc<char> > string;
+
+   template <class T> 
+      class vector : public std::vector<T, STLsmartalloc<T> > {
+   };
+
+   template <class T> 
+      class list : public std::list<T, STLsmartalloc<T> > {
+   };
+
+   template <class Key, class Data, class Compare = std::less<Key> >
+      class map : public std::map<Key, Data, Compare, STLsmartalloc< std::pair<const Key, Data> > > {
+      };
+
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+   template <class Key, class Ty, class Hash = std::hash<Key>, 
+            class Pred = std::equal_to<Key>  >
+      class unordered_map : public std::unordered_map<Key, Ty, Hash, Pred,
+         STLsmartalloc< std::pair<const Key, Ty> > > {
+      };
+#endif
+
+};
 
 #endif
 

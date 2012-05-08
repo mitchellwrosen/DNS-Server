@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <list>
 #include <map>
 #include <utility>
@@ -149,17 +150,29 @@ DnsCache::DnsCache() {
 bool DnsCache::Get(std::string name,
                    uint16_t type,
                    uint16_t clz,
-                   RRList* answer_rrs,
-                   RRList* authority_rrs,
-                   RRList* additional_rrs) {
+                   RRVec* answer_rrs,
+                   RRVec* authority_rrs,
+                   RRVec* additional_rrs) {
    DnsQuery query(name, type, clz);
    return Get(query, answer_rrs, authority_rrs, additional_rrs);
 }
 
 bool DnsCache::Get(DnsQuery& query,
-                   RRList* answer_rrs,
-                   RRList* authority_rrs,
-                   RRList* additional_rrs) {
+                   RRVec* answer_rrs,
+                   RRVec* authority_rrs,
+                   RRVec* additional_rrs) {
+   bool ret = Get2(query, answer_rrs, authority_rrs, additional_rrs);
+
+   // Randomize authorities
+   std::random_shuffle(authority_rrs->begin(), authority_rrs->end());
+
+   return ret;
+}
+
+bool DnsCache::Get2(DnsQuery& query,
+                    RRVec* answer_rrs,
+                    RRVec* authority_rrs,
+                    RRVec* additional_rrs) {
    // First and foremost, search the negative cache
    if (GetIterative(query, authority_rrs, ncache_))
       return true;
@@ -175,7 +188,7 @@ bool DnsCache::Get(DnsQuery& query,
 
       // If NS or MX, try to fill additional with A/AAAA
       uint16_t type = ntohs(query.type());
-      RRList::iterator it;
+      RRVec::iterator it;
       if (type == constants::type::NS) {
          for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
             GetIterative(it->data(),
@@ -209,7 +222,7 @@ bool DnsCache::Get(DnsQuery& query,
       return true;
    }
 
-   RRList::iterator it;
+   RRVec::iterator it;
 
    // Look for CNAME match
    if (GetIterative(query.name(),
@@ -242,7 +255,7 @@ bool DnsCache::Get(DnsQuery& query,
       // If no record was found, report back to the server only the last CNAME
       if (!found) {
          while (answer_rrs->size() > 1)
-            answer_rrs->pop_front();
+            answer_rrs->erase(answer_rrs->begin());
 
          // Try to fill out authority with NS of the last CNAME
          GetRecursive(answer_rrs->back().data(),
@@ -307,14 +320,14 @@ bool DnsCache::Get(DnsQuery& query,
 bool DnsCache::GetIterative(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            RRList* rrs,
+                            RRVec* rrs,
                             Cache& cache) {
    DnsQuery query(name, type, clz);
    return GetIterative(query, rrs, cache);
 }
 
 bool DnsCache::GetIterative(DnsQuery& query,
-                            RRList* rrs,
+                            RRVec* rrs,
                             Cache& cache) {
    LOG << "Looking for " << query.ToString();
    if (&cache == &ncache_)
@@ -367,7 +380,7 @@ bool DnsCache::GetIterative(DnsQuery& query,
 void DnsCache::GetRecursive(std::string name,
                             uint16_t type,
                             uint16_t clz,
-                            RRList* rrs,
+                            RRVec* rrs,
                             Cache& cache) {
    DnsQuery query(name, type, clz);
    GetRecursive(query, rrs, cache);
@@ -375,7 +388,7 @@ void DnsCache::GetRecursive(std::string name,
 
 
 void DnsCache::GetRecursive(DnsQuery& query,
-                            RRList* rrs,
+                            RRVec* rrs,
                             Cache& cache) {
    if (GetIterative(query, rrs, cache))
       return;

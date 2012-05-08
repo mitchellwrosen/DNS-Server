@@ -163,9 +163,9 @@ char* DnsPacket::ConstructQuery(char* buf, uint16_t id, uint16_t opcode,
 int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
       uint16_t opcode, bool aa_flag, bool tc_flag, bool rd_flag, bool ra_flag,
       uint16_t rcode, DnsQuery& query,
-      RRList& answer_rrs,
-      RRList& authority_rrs,
-      RRList& additional_rrs) {
+      RRVec& answer_rrs,
+      RRVec& authority_rrs,
+      RRVec& additional_rrs) {
    Header* header = (struct Header*) buf;
    char* p = ConstructHeader(buf, id, qr_flag, opcode, aa_flag, tc_flag,
          rd_flag, ra_flag, rcode);
@@ -183,7 +183,7 @@ int DnsPacket::ConstructPacket(char* buf, uint16_t id, bool qr_flag,
    uint16_t additionals_written = 0;
 
    // Write as many answers as we can
-   RRList::iterator it;
+   RRVec::iterator it;
    for (it = answer_rrs.begin(); it != answer_rrs.end(); ++it) {
       old_p = p;
       p = it->Construct(&offset_map, p, buf);

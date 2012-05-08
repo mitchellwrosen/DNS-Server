@@ -109,11 +109,9 @@ DnsResourceRecord::DnsResourceRecord(std::string name, uint16_t type,
    memcpy(data_, data, ntohs(data_len));
 }
 
-DnsResourceRecord::DnsResourceRecord(const DnsResourceRecord& rr)
-      : name_(rr.name_), type_(rr.type_), clz_(rr.clz_), ttl_(rr.ttl_),
-      data_len_(rr.data_len_) {
-   MALLOCCHECK((data_ = (char*) malloc((size_t) ntohs(rr.data_len_))));
-   memcpy(data_, rr.data_, ntohs(rr.data_len_));
+DnsResourceRecord::DnsResourceRecord(const DnsResourceRecord& rr) 
+      : data_(NULL) {
+   *this = rr;
 }
 
 DnsResourceRecord::~DnsResourceRecord() {
@@ -130,8 +128,9 @@ DnsResourceRecord& DnsResourceRecord::operator=(const DnsResourceRecord& rr) {
    ttl_ = rr.ttl_;
    data_len_ = rr.data_len_;
 
-   MALLOCCHECK((data_ = (char*) malloc((size_t) data_len_)));
-   memmove(data_, rr.data_, data_len_);
+   if (data_) delete data_;
+   MALLOCCHECK((data_ = (char*) malloc((size_t) ntohs(data_len_))));
+   memcpy(data_, rr.data_, ntohs(data_len_));
    return *this;
 }
 

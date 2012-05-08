@@ -48,8 +48,8 @@ DnsServer::~DnsServer() {
 }
 
 DnsServer::QueryInfo::QueryInfo(DnsQuery& query,
-                                RRList& authority_rrs,
-                                RRList& additional_rrs)
+                                RRVec& authority_rrs,
+                                RRVec& additional_rrs)
       : query_(query),
         authority_rrs_(authority_rrs),
         additional_rrs_(additional_rrs) {
@@ -58,8 +58,8 @@ DnsServer::QueryInfo::QueryInfo(DnsQuery& query,
 DnsServer::ClientInfo::ClientInfo(struct sockaddr_in6 client_addr,
                                   uint16_t id,
                                   DnsQuery& query,
-                                  RRList& authority_rrs,
-                                  RRList& additional_rrs)
+                                  RRVec& authority_rrs,
+                                  RRVec& additional_rrs)
       : client_addr_(client_addr),
         id_(id) {
    query_info_list_.push_back(QueryInfo(query, authority_rrs, additional_rrs));
@@ -90,10 +90,14 @@ bool DnsServer::UpdateTimeout(uint16_t id) {
    return false;
 }
 
+DnsServer::ClientInfoVec::iterator DnsServer::GetClient(uint16_t id) {
+   return std::find(client_info_vec_.begin(),
+                    client_info_vec_.end(),
+                    id);
+}
+
 bool DnsServer::RemoveClient(uint16_t id) {
-   return RemoveClient(std::find(client_info_vec_.begin(),
-                                 client_info_vec_.end(),
-                                 id));
+   return RemoveClient(GetClient(id));
 }
 
 bool DnsServer::RemoveClient(ClientInfoVec::iterator it) {
@@ -117,7 +121,7 @@ void DnsServer::Run() {
          LOG << "Timeout. Deleting top authority record and querying another "
                "server." << std::endl;
          ClientInfo* client_info = &client_info_vec_.front();
-         RRList& auth_rrs = client_info->query_info_list_.back().authority_rrs_;
+         RRVec& auth_rrs = client_info->query_info_list_.back().authority_rrs_;
 
          auth_rrs.erase(auth_rrs.begin());
 
@@ -140,13 +144,27 @@ void DnsServer::Run() {
 
       // 100 ms wait for data to come in
       if (Server::HasDataToRead(sock_, 0, 100)) {
-         ReadIntoBuffer((struct sockaddr*) &client_addr, &client_addr_len);
+         int rlen = ReadIntoBuffer((struct sockaddr*) &client_addr, 
+                                   &client_addr_len);
          DnsPacket packet(buf_);
 
          DnsQuery query = packet.GetQuery();
 
-         if (packet.qr_flag())
-            CacheAllResourceRecords(packet, query);
+         if (packet.qr_flag()) {
+            // If the packet contained an SOA, just forward it to the
+            // client and delete it. Shitty, I know.
+            if (CacheAllResourceRecords(packet, query)) {
+               ClientInfoVec::iterator it = GetClient(packet.id());   
+               if (it != client_info_vec_.end()) {
+                  SendBufferToAddr(
+                        (struct sockaddr*) &it->client_addr_,
+                        sizeof(struct sockaddr_in6),
+                        rlen);
+
+                 RemoveClient(it);
+               }
+            }
+         }
 
          if (packet.rcode() == constants::response_code::Refused) {
             // TODO respond to client
@@ -158,18 +176,17 @@ void DnsServer::Run() {
          // out-of-date and be refreshed. (This is not the case when this is
          // there is no ClientInfo for this client yet (first query)).
 
-         RRList answer_rrs;
+         RRVec answer_rrs;
 
          ClientInfo* cur_client_info;
-         ClientInfoVec::iterator it = std::find(client_info_vec_.begin(),
-                                                client_info_vec_.end(),
-                                                packet.id());
+         ClientInfoVec::iterator it = GetClient(packet.id());
+
          // "Special" case -- no ClientInfo for this client yet (first query)
          if (it == client_info_vec_.end()) {
             LOG << "First time query - attempting to respond with cache" <<
                   std::endl;
-            RRList authority_rrs;
-            RRList additional_rrs;
+            RRVec authority_rrs;
+            RRVec additional_rrs;
 
             // If cache hit or iterative-request, respond
             if (cache_->Get(query, &answer_rrs, &authority_rrs,
@@ -220,7 +237,7 @@ void DnsServer::Run() {
             // wasn't the original, pop its query
             if (packet.qr_flag() && cur_query_info_list.size() > 1) {
                QueryInfo& cur_query_info = cur_query_info_list.back();
-               RRList temp_answer_rrs;
+               RRVec temp_answer_rrs;
 
                if (cache_->Get(cur_query_info.query_,
                                &temp_answer_rrs,                    // junk
@@ -236,8 +253,8 @@ void DnsServer::Run() {
 
             QueryInfo& cur_query_info = cur_query_info_list.back();
 
-            RRList& authority_rrs = cur_query_info.authority_rrs_;
-            RRList& additional_rrs = cur_query_info.additional_rrs_;
+            RRVec& authority_rrs = cur_query_info.authority_rrs_;
+            RRVec& additional_rrs = cur_query_info.additional_rrs_;
 
             cur_query_info.authority_rrs_.clear();
             cur_query_info.additional_rrs_.clear();
@@ -292,15 +309,22 @@ void DnsServer::Run() {
             }
          }
 
-         SendQueryUpstream(cur_client_info);
+         if (!SendQueryUpstream(cur_client_info))
+            RemoveClient(cur_client_info->id_);
       }
    }
 }
 
-RRList::iterator DnsServer::FindNameserverIp(DnsResourceRecord& auth_rr,
-                                             RRList& addl_rrs,
-                                             uint16_t type) {
-   RRList::iterator it;
+RRVec::iterator DnsServer::FindNameserverIp(DnsResourceRecord& auth_rr,
+                                             RRVec& addl_rrs,
+                                             bool v4) {
+   RRVec::iterator it;
+   uint16_t type;
+
+   if (v4)
+      type = htons(constants::type::A);
+   else
+      type = htons(constants::type::AAAA);
 
    for (it = addl_rrs.begin(); it != addl_rrs.end(); ++it) {
       if (!it->name().compare(auth_rr.data()) &&
@@ -310,7 +334,7 @@ RRList::iterator DnsServer::FindNameserverIp(DnsResourceRecord& auth_rr,
    }
 
    // Fall back to v4, if v6 miss
-   if (it == addl_rrs.end() && type == htons(constants::type::AAAA)) {
+   if (it == addl_rrs.end() && !v4) {
       for (it = addl_rrs.begin(); it != addl_rrs.end(); ++it) {
          if (!it->name().compare(auth_rr.data()) &&
              it->type() == htons(constants::type::A)) {
@@ -322,45 +346,49 @@ RRList::iterator DnsServer::FindNameserverIp(DnsResourceRecord& auth_rr,
    return it;
 }
 
-void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
-   bool v4 = IN6_IS_ADDR_V4MAPPED(&client_info->client_addr_.sin6_addr);
-   uint16_t type;
-
-   if (v4)
-      type = htons(constants::type::A);
-   else
-      type = htons(constants::type::AAAA);
-
+bool DnsServer::SendQueryUpstream(ClientInfo* client_info) {
    // Grab the top authority from the top QueryInfo and check to see if
    // its A/AAAA record is in the additionals
-   QueryInfo* query_info = &client_info->query_info_list_.back();
-   DnsResourceRecord& auth_rr = query_info->authority_rrs_.front();
-   RRList& addl_rrs = query_info->additional_rrs_;
+   QueryInfoList& query_info_list = client_info->query_info_list_;
+   if (!query_info_list.size()) {
+      LOG << "Client ran out of authority RRs." << std::endl;
+      return false;   
+   }
 
-   RRList::iterator it = FindNameserverIp(auth_rr, addl_rrs, type);
+   QueryInfo& query_info = query_info_list.back();
+   DnsResourceRecord& auth_rr = query_info.authority_rrs_.front();
+   RRVec& addl_rrs = query_info.additional_rrs_;
+
+   RRVec::iterator it = FindNameserverIp(auth_rr, addl_rrs, 
+         IN6_IS_ADDR_V4MAPPED(&client_info->client_addr_.sin6_addr));
 
    // If we didn't find such an A/AAAA rec, do a cache query to get the
-   // right authority and A/AAAA records.
+   // right authority and A records. (kind of cheating here... :/)
    // This query may end up with missing additional information as well, in
    // which case we recurse. (This will terminate at root servers, worst case).
    if (it == addl_rrs.end()) {
-      DnsQuery query2(auth_rr.data(), type, htons(constants::clz::IN));
+      DnsQuery query2(auth_rr.data(), 
+                      htons(constants::type::A), 
+                      htons(constants::clz::IN));
 
-      RRList temp_answer_rrs;
-      RRList temp_authority_rrs;
-      RRList temp_additional_rrs;
+      RRVec temp_answer_rrs;
+      RRVec temp_authority_rrs;
+      RRVec temp_additional_rrs;
 
       if (cache_->Get(query2, &temp_answer_rrs, &temp_authority_rrs,
             &temp_additional_rrs)) {
-         LOG << "BROKEN CACHE." << std::endl;
-         //exit(EXIT_FAILURE);
+         LOG << "Probably I got an SOA for an A record of a NS. If this is the "
+               "case, delete this auth and re-call this function." << std::endl;
+
+         query_info_list.pop_back();
+         return SendQueryUpstream(client_info);
       }
 
       LOG << "Pushing " << query2.ToString() << " onto current QueryInfoList"
             << std::endl;
-      client_info->query_info_list_.push_back(QueryInfo(query2,
-                                                       temp_authority_rrs,
-                                                       temp_additional_rrs));
+      query_info_list.push_back(QueryInfo(query2,
+                                          temp_authority_rrs,
+                                          temp_additional_rrs));
 
       // Update timeout, which sorts the list
       if (!UpdateTimeout(client_info->id_)) {
@@ -369,8 +397,7 @@ void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
          exit(EXIT_FAILURE);
       }
 
-      SendQueryUpstream(client_info);
-      return;
+      return SendQueryUpstream(client_info);
    }
 
    // TODO i6
@@ -392,26 +419,35 @@ void DnsServer::SendQueryUpstream(ClientInfo* client_info) {
    }
 
    SendQueryUpstream((struct sockaddr*) &addr, sizeof(struct sockaddr_in6),
-         query_info->query_, client_info->id_);
+         query_info.query_, client_info->id_);
+
+   return true;
 }
 
-void DnsServer::CacheAllResourceRecords(DnsPacket& packet) {
+bool DnsServer::CacheAllResourceRecords(DnsPacket& packet) {
    DnsQuery query = packet.GetQuery(); // Save query in case of SOAs
-   CacheAllResourceRecords(packet, query);
+   return CacheAllResourceRecords(packet, query);
 }
 
-void DnsServer::CacheAllResourceRecords(DnsPacket& packet, DnsQuery& query) {
+bool DnsServer::CacheAllResourceRecords(DnsPacket& packet, DnsQuery& query) {
    int num_rrs = packet.answer_rrs() + packet.authority_rrs() +
          packet.additional_rrs();
+
+   bool contains_soa = false;
 
    for (int i = 0; i < num_rrs; ++i) {
       DnsResourceRecord record = packet.GetResourceRecord();
 
-      if (ntohs(record.type()) == constants::type::SOA)
+      if (ntohs(record.type()) == constants::type::SOA) {
          cache_->Insert(query, record);
-      else
+         contains_soa = true;
+      }
+      else {
          cache_->Insert(record);
+      }
    }
+
+   return contains_soa;
 }
 
 void DnsServer::SendQueryUpstream(struct sockaddr* addr, socklen_t addrlen,
@@ -430,9 +466,8 @@ void DnsServer::SendBufferToAddr(struct sockaddr* addr, socklen_t addrlen,
    // intentionally not error-checked
    sendto(sock_, buf_, datalen, 0, addr, addrlen);
 
-   // TODO i6
    char* ip_dots_and_numbers =
-         inet_ntoa(((struct sockaddr_in*) addr)->sin_addr);
+      inet_ntoa(((struct sockaddr_in*) addr)->sin_addr);
    LOG << "Sent " << datalen << " bytes to " << ip_dots_and_numbers <<
          std::endl;
 }

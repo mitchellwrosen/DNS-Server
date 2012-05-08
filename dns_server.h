@@ -31,18 +31,18 @@ class DnsServer : public UdpServer {
    virtual ~DnsServer();
 
    struct QueryInfo {
-      QueryInfo(DnsQuery& query, RRList& authority_rrs, RRList& additional_rrs);
+      QueryInfo(DnsQuery& query, RRVec& authority_rrs, RRVec& additional_rrs);
 
       DnsQuery query_;
-      RRList authority_rrs_;
-      RRList additional_rrs_;
+      RRVec authority_rrs_;
+      RRVec additional_rrs_;
    };
 
    typedef std::list<QueryInfo, STLsmartalloc<QueryInfo> > QueryInfoList;
 
    struct ClientInfo {
       ClientInfo(struct sockaddr_in6 client_addr, uint16_t id, DnsQuery& query,
-            RRList& authority_rrs, RRList& additional_rrs);
+            RRVec& authority_rrs, RRVec& additional_rrs);
 
       struct sockaddr_in6 client_addr_;
       uint16_t id_;   // network order
@@ -64,10 +64,11 @@ class DnsServer : public UdpServer {
    // Return true if the update was successful (it always should be).
    bool UpdateTimeout(uint16_t id);
 
-   RRList::iterator FindNameserverIp(DnsResourceRecord& auth_rr,
-                                     RRList& addl_rrs,
-                                     uint16_t type);
+   RRVec::iterator FindNameserverIp(DnsResourceRecord& auth_rr,
+                                    RRVec& addl_rrs,
+                                    bool v4);
 
+   ClientInfoVec::iterator GetClient(uint16_t id);
    bool RemoveClient(uint16_t id);
    bool RemoveClient(ClientInfoVec::iterator it);
 
@@ -77,16 +78,18 @@ class DnsServer : public UdpServer {
    int ReadIntoBuffer(struct sockaddr* client_addr, socklen_t* client_addr_len);
 
    // Sends the top query of a ClientInfo upstream, after possible pushing
-   // more queries to resolve (such as A records of NS)
-   void SendQueryUpstream(ClientInfo* client_info);
+   // more queries to resolve (such as A records of NS). Returns true if a
+   // query was sent upstream, false if the client ran out of authorities to
+   // try (all SOAs).
+   bool SendQueryUpstream(ClientInfo* client_info);
 
    // Sends a DnsQuery to an upstream server, fills in addr info (TODO i6)
    void SendQueryUpstream(struct sockaddr* addr, socklen_t addrlen,
          DnsQuery& query, uint16_t id);
 
    // Caches all resource records of a packet.
-   void CacheAllResourceRecords(DnsPacket& packet);
-   void CacheAllResourceRecords(DnsPacket& packet, DnsQuery& query);
+   bool CacheAllResourceRecords(DnsPacket& packet);
+   bool CacheAllResourceRecords(DnsPacket& packet, DnsQuery& query);
 
    // Sends buf_ to the specified address.
    void SendBufferToAddr(struct sockaddr* addr, socklen_t addrlen, int datalen);
