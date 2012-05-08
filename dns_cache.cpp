@@ -173,7 +173,7 @@ bool DnsCache::Get(DnsQuery& query,
                    authority_rrs,
                    cache_);
 
-      // If NS or MX, try to fill additional
+      // If NS or MX, try to fill additional with A/AAAA
       uint16_t type = ntohs(query.type());
       RRList::iterator it;
       if (type == constants::type::NS) {
@@ -183,11 +183,23 @@ bool DnsCache::Get(DnsQuery& query,
                          query.clz(),
                          additional_rrs,
                          cache_);
+
+            GetIterative(it->data(),
+                         ntohs(constants::type::AAAA),
+                         query.clz(),
+                         additional_rrs,
+                         cache_);
          }
       } else if (type == constants::type::MX) {
          for (it = answer_rrs->begin(); it != answer_rrs->end(); ++it) {
             GetIterative(it->data() + 2,
                          ntohs(constants::type::A),
+                         query.clz(),
+                         additional_rrs,
+                         cache_);
+
+            GetIterative(it->data() + 2,
+                         ntohs(constants::type::AAAA),
                          query.clz(),
                          additional_rrs,
                          cache_);
@@ -227,7 +239,7 @@ bool DnsCache::Get(DnsQuery& query,
          }
       }
 
-      // If no A record was found, report back to the server only the last CNAME
+      // If no record was found, report back to the server only the last CNAME
       if (!found) {
          while (answer_rrs->size() > 1)
             answer_rrs->pop_front();
@@ -247,17 +259,22 @@ bool DnsCache::Get(DnsQuery& query,
                       cache_);
       }
 
-      // Try to fill out additional with A records of NS
+      // Try to fill out additional with A/AAAA records of NS
       for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it) {
          GetIterative(it->data(),
                       ntohs(constants::type::A),
                       query.clz(),
                       additional_rrs,
                       cache_);
-         // TODO i6?
+
+         GetIterative(it->data(),
+                      ntohs(constants::type::AAAA),
+                      query.clz(),
+                      additional_rrs,
+                      cache_);
       }
 
-      // If we hit any A records for any CNAMEs, cache hit. Otherwise,
+      // If we hit any A/AAAA records for any CNAMEs, cache hit. Otherwise,
       // cache miss.
       return found;
    }
@@ -269,8 +286,14 @@ bool DnsCache::Get(DnsQuery& query,
                 authority_rrs,
                 cache_);
 
-   // Try to fill out additional information with A records of NS
+   // Try to fill out additional information with A/AAAA records of NS
    for (it = authority_rrs->begin(); it != authority_rrs->end(); ++it) {
+      GetIterative(it->data(),
+                   ntohs(constants::type::A),
+                   query.clz(),
+                   additional_rrs,
+                   cache_);
+
       GetIterative(it->data(),
                    ntohs(constants::type::A),
                    query.clz(),
