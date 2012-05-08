@@ -107,7 +107,7 @@ bool DnsServer::RemoveClient(ClientInfoVec::iterator it) {
 
 void DnsServer::Run() {
    struct sockaddr_in6 client_addr;
-   socklen_t client_addr_len;
+   socklen_t client_addr_len = sizeof(struct sockaddr_in6);
 
    // Main event loop
    while (1) {
